@@ -14,6 +14,6 @@
 - **Execução:** `.venv/bin/python main.py` (fechar a janela ou pressionar `Esc`).
 
 ## Publicacao no GitHub
-- **Feito:** verificados o branch remoto `main`, o conteúdo local e a ausência de padrões de credenciais nos arquivos do projeto; preparado o envio do workspace ao repositório informado.
+- **Feito:** projeto publicado no branch `main` do repositório informado, no commit `ead412a`; verificados o conteúdo local e a ausência de padrões de credenciais nos arquivos enviados.
 - **Arquivos/funções criados ou revisados:** nenhum código alterado nesta tarefa; atualizado este registro.
 - **Destino:** `https://github.com/SubmarinoEspacial/trabalhocomputacaografica3d`.
