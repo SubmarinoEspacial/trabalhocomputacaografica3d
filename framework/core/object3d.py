@@ -19,6 +19,7 @@ class Object3D:
         self.position = tuple(position)
         self.rotation = tuple(rotation)
         self.scale = tuple(scale)
+        self.visible = True
         self.children = []
 
     def add(self, *objects):
@@ -28,6 +29,9 @@ class Object3D:
 
     def render(self):
         """Aplica a transformação local e renderiza recursivamente os filhos."""
+        if not self.visible:
+            return
+
         glPushMatrix()
         try:
             glTranslatef(*self.position)

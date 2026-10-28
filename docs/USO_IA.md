@@ -35,3 +35,8 @@
 - **Feito:** implementados `Submarino.build()` e `Submarino.apply()` com casco cilíndrico ao longo de X, proa, torre, periscópio, hélice de três pás, aletas e leme em hierarquia `Object3D`; o root entra na cena e atualiza em cada quadro.
 - **Arquivos/funções criados ou revisados:** revisado `src/entities/submarino.py`; adicionada `CylinderGeometry` em `framework/geometry/primitives.py`; revisado `main.py` para construir/adicionar o root e atualizar a lógica enquanto o submarino estiver construído.
 - **Verificação:** em oito quadros OpenGL, a posição de patrulha avançou de `x=-7,976` para `x=-7,713` e o pivô da hélice girou `65,7°`; a captura mostrou o submarino no tanque. `tests.test_abducao` passou em 30 e 120 FPS.
+
+## Modelo do disco voador
+- **Feito:** implementados `DiscoVoador.build()` e `apply()` com corpo esférico achatado, cúpula, pivô com oito luzes, cone de feixe oculto quando desligado e escala ligada ao nível do feixe; root adicionado à cena.
+- **Arquivos/funções criados ou revisados:** revisado `src/entities/disco_voador.py`; adicionadas `SphereGeometry`, `ConeGeometry` e visibilidade recursiva em `framework/geometry/primitives.py` e `framework/core/object3d.py`; revisado `main.py`; atualizado este registro e `framework/README.md`.
+- **Verificação:** ciclo simulado percorreu PATRULHA a FINAL e reiniciou; o anel girou, o hover foi aplicado e o feixe ficou visível durante FEIXE/ABDUCAO e apagou no reset. Captura OpenGL mostrou disco e submarino juntos.

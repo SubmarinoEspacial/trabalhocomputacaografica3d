@@ -1,6 +1,10 @@
-"""Disco voador: estado de animação + modelo hierárquico."""
+"""Disco voador estilizado composto por geometrias do framework local."""
 import math
 import numpy as np
+from framework.core.mesh import Mesh
+from framework.core.object3d import Object3D
+from framework.geometry.primitives import ConeGeometry, SphereGeometry
+from framework.material.basic import ColorMaterial
 from src import config as C
 
 
@@ -22,18 +26,82 @@ class DiscoVoador:
         return C.DISC_HOVER_AMP * math.sin(self.hover_phase)
 
     def build(self):
-        """TODO: montar a hierarquia com geometrias do framework.
+        """Monta corpo achatado, cúpula, anel luminoso e feixe retrátil."""
+        if self.root is not None:
+            return self.root
 
-        root
-        ├── corpo (esfera achatada: escala Y pequena)
-        ├── cúpula (esfera menor)
-        ├── anel (pivô que gira) -> esferas pequenas (luzes)
-        └── feixe (cone de base maior; escala em Y = beam_amount)
-        """
-        raise NotImplementedError
+        material_corpo = ColorMaterial((0.42, 0.54, 0.62))
+        material_cupula = ColorMaterial((0.18, 0.72, 0.82))
+        material_anel = ColorMaterial((0.92, 0.62, 0.16))
+        material_luzes = (
+            ColorMaterial((0.96, 0.22, 0.16)),
+            ColorMaterial((0.18, 0.9, 0.58)),
+            ColorMaterial((0.2, 0.62, 0.98)),
+            ColorMaterial((0.98, 0.86, 0.32)),
+        )
+        material_feixe = ColorMaterial((0.35, 0.82, 0.96))
+
+        self.root = Object3D()
+        self.corpo = Object3D()
+        self.corpo.add(
+            Mesh(
+                SphereGeometry(segments=32, rings=16),
+                material_corpo,
+                scale=(1.7, 0.34, 1.35),
+            )
+        )
+
+        cupula = Mesh(
+            SphereGeometry(segments=24, rings=12),
+            material_cupula,
+            position=(0.0, 0.31, 0.0),
+            scale=(0.62, 0.48, 0.62),
+        )
+
+        # O pivô é filho do corpo, mas este nó não tem escala para não achatar o anel.
+        self.anel = Object3D(position=(0.0, 0.08, 0.0))
+        self.anel.add(
+            Mesh(
+                SphereGeometry(segments=24, rings=12),
+                material_anel,
+                scale=(1.48, 0.09, 1.48),
+            )
+        )
+        for index in range(8):
+            angulo = 2.0 * math.pi * index / 8.0
+            self.anel.add(
+                Mesh(
+                    SphereGeometry(segments=10, rings=6),
+                    material_luzes[index % len(material_luzes)],
+                    position=(1.55 * math.cos(angulo), 0.04, 1.55 * math.sin(angulo)),
+                    scale=(0.15, 0.15, 0.15),
+                )
+            )
+        self.corpo.add(cupula, self.anel)
+
+        self.feixe = Mesh(
+            ConeGeometry(radius=0.82, height=2.8, segments=32),
+            material_feixe,
+            position=(0.0, -1.52, 0.0),
+        )
+        self.root.add(self.corpo, self.feixe)
+        self.apply()
+        return self.root
 
     def apply(self):
-        # posição final = self.position + (0, self.hover_offset, 0)
-        # self.anel: rotação em Y = self.ring_angle
-        # self.feixe: visível se beam_amount > 0, escala = beam_amount
-        pass
+        """Aplica flutuação, rotação do anel e estado visual do feixe."""
+        if self.root is None:
+            return
+
+        self.root.position = (
+            float(self.position[0]),
+            float(self.position[1] + self.hover_offset),
+            float(self.position[2]),
+        )
+        if self.anel is not None:
+            self.anel.rotation = (0.0, math.degrees(self.ring_angle), 0.0)
+
+        if self.feixe is not None:
+            amount = max(0.0, min(1.0, float(self.beam_amount)))
+            self.feixe.visible = amount > 0.0
+            self.feixe.scale = (amount, amount, amount)

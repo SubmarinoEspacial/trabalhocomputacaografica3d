@@ -3,6 +3,7 @@ import math
 
 from OpenGL.GL import (
     GL_QUADS,
+    GL_TRIANGLES,
     GL_TRIANGLE_FAN,
     glBegin,
     glEnd,
@@ -112,3 +113,70 @@ class CylinderGeometry:
                 angle = 2.0 * math.pi * index / self.segments
                 glVertex3f(radius * math.cos(angle), y, radius * math.sin(angle))
             glEnd()
+
+
+class SphereGeometry:
+    """Esfera de raio unitário, escalada no nó Mesh para formar os modelos."""
+
+    def __init__(self, segments=24, rings=16):
+        self.segments = max(3, segments)
+        self.rings = max(2, rings)
+
+    def draw(self):
+        """Tesselaciona a esfera em quadriláteros com normais suaves."""
+        glBegin(GL_QUADS)
+        for ring in range(self.rings):
+            latitude_a = -math.pi / 2.0 + math.pi * ring / self.rings
+            latitude_b = -math.pi / 2.0 + math.pi * (ring + 1) / self.rings
+            for segment in range(self.segments):
+                longitude_a = 2.0 * math.pi * segment / self.segments
+                longitude_b = 2.0 * math.pi * (segment + 1) / self.segments
+                for latitude, longitude in (
+                    (latitude_a, longitude_a),
+                    (latitude_a, longitude_b),
+                    (latitude_b, longitude_b),
+                    (latitude_b, longitude_a),
+                ):
+                    normal_x = math.cos(latitude) * math.cos(longitude)
+                    normal_y = math.sin(latitude)
+                    normal_z = math.cos(latitude) * math.sin(longitude)
+                    glNormal3f(normal_x, normal_y, normal_z)
+                    glVertex3f(normal_x, normal_y, normal_z)
+        glEnd()
+
+
+class ConeGeometry:
+    """Cone no eixo Y, com vértice em cima e base circular embaixo."""
+
+    def __init__(self, radius=1.0, height=1.0, segments=24):
+        self.radius = radius
+        self.height = height
+        self.segments = max(3, segments)
+
+    def draw(self):
+        """Desenha a lateral triangular e uma base voltada para baixo."""
+        half_height = self.height / 2.0
+        normal_length = math.hypot(self.height, self.radius)
+
+        glBegin(GL_TRIANGLES)
+        for segment in range(self.segments):
+            angle_a = 2.0 * math.pi * segment / self.segments
+            angle_b = 2.0 * math.pi * (segment + 1) / self.segments
+            angle_middle = (angle_a + angle_b) / 2.0
+            glNormal3f(
+                self.height * math.cos(angle_middle) / normal_length,
+                self.radius / normal_length,
+                self.height * math.sin(angle_middle) / normal_length,
+            )
+            glVertex3f(self.radius * math.cos(angle_a), -half_height, self.radius * math.sin(angle_a))
+            glVertex3f(self.radius * math.cos(angle_b), -half_height, self.radius * math.sin(angle_b))
+            glVertex3f(0.0, half_height, 0.0)
+        glEnd()
+
+        glBegin(GL_TRIANGLE_FAN)
+        glNormal3f(0.0, -1.0, 0.0)
+        glVertex3f(0.0, -half_height, 0.0)
+        for segment in range(self.segments, -1, -1):
+            angle = 2.0 * math.pi * segment / self.segments
+            glVertex3f(self.radius * math.cos(angle), -half_height, self.radius * math.sin(angle))
+        glEnd()

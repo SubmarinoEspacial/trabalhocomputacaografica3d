@@ -43,6 +43,8 @@ class Aplicacao(Base):
         self.submarino.build()
         self.scene.add(self.submarino.root)
         self.disco = DiscoVoador()
+        self.disco.build()
+        self.scene.add(self.disco.root)
         self.controlador = AbducaoController(self.submarino, self.disco)
 
         self.pausado = False
