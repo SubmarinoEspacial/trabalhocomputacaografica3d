@@ -30,3 +30,8 @@
 - **Origem do asset:** `assets/textures/concreto_teste.png` é uma textura sintética de 256 × 256 px, gerada com NumPy/Pygame, sem fonte externa; trocar por foto real antes da entrega final.
 - **Fonte conceitual:** estrutura de cena conforme capítulo 4 e mapeamento de textura conforme capítulo 5 de Stemkoski e Pascale (2022); implementações locais originais, sem cópia de código do livro.
 - **Verificação:** renderização real gerou cinco malhas e 445 cores distintas na região capturada do piso, com `glGetError()` sem erros.
+
+## Modelo do submarino
+- **Feito:** implementados `Submarino.build()` e `Submarino.apply()` com casco cilíndrico ao longo de X, proa, torre, periscópio, hélice de três pás, aletas e leme em hierarquia `Object3D`; o root entra na cena e atualiza em cada quadro.
+- **Arquivos/funções criados ou revisados:** revisado `src/entities/submarino.py`; adicionada `CylinderGeometry` em `framework/geometry/primitives.py`; revisado `main.py` para construir/adicionar o root e atualizar a lógica enquanto o submarino estiver construído.
+- **Verificação:** em oito quadros OpenGL, a posição de patrulha avançou de `x=-7,976` para `x=-7,713` e o pivô da hélice girou `65,7°`; a captura mostrou o submarino no tanque. `tests.test_abducao` passou em 30 e 120 FPS.

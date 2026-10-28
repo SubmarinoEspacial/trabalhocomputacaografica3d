@@ -40,6 +40,8 @@ class Aplicacao(Base):
         build_tanque(self.scene)
 
         self.submarino = Submarino()
+        self.submarino.build()
+        self.scene.add(self.submarino.root)
         self.disco = DiscoVoador()
         self.controlador = AbducaoController(self.submarino, self.disco)
 
@@ -66,17 +68,14 @@ class Aplicacao(Base):
         self.camera_rig.update(delta_quadro, teclas)
         delta_logica = 0.0 if self.pausado else delta_quadro
 
-        if self._modelos_construidos():
+        if self.submarino.root is not None:
             self.controlador.update(delta_logica)
             self.submarino.apply()
+        if self.disco.root is not None:
             self.disco.apply()
 
         self.camera_rig.apply()
         self.scene.render()
-
-    def _modelos_construidos(self):
-        """Só habilita a lógica e o apply depois de ambas as raízes existirem."""
-        return self.submarino.root is not None and self.disco.root is not None
 
 
 if __name__ == "__main__":
