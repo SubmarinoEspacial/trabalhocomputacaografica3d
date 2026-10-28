@@ -17,3 +17,16 @@
 - **Feito:** projeto publicado no branch `main` do repositório informado, no commit `ead412a`; verificados o conteúdo local e a ausência de padrões de credenciais nos arquivos enviados.
 - **Arquivos/funções criados ou revisados:** nenhum código alterado nesta tarefa; atualizado este registro.
 - **Destino:** `https://github.com/SubmarinoEspacial/trabalhocomputacaografica3d`.
+
+## Câmera, pausa e reset
+- **Feito:** estruturada `Aplicacao` sobre `Base`, com projeção em perspectiva, controles de câmera, alternância de pausa por ESPAÇO e reset do controlador por R. Atualização e aplicação dos modelos ficam condicionadas às raízes estarem construídas.
+- **Arquivos/funções criados ou revisados:** revisado `main.py` (`Aplicacao.initialize`, `Aplicacao.update`, `Aplicacao._modelos_construidos`); criado `src/controls/camera_rig.py` (`MovementRig.update`, `MovementRig.apply`); atualizado este registro.
+- **Fonte da adaptação:** Stemkoski e Pascale (2022), capítulo 4, seção "Scene Graph Framework", classe `MovementRig`.
+- **Verificação:** teste OpenGL de cinco quadros confirmou câmera ativa durante a pausa, cubo parado e reset por R; `tests.test_abducao` passou em 30 e 120 FPS; diagnósticos Pylance sem erros.
+
+## Tanque e textura
+- **Feito:** criado o tanque com piso UV repetível e quatro paredes de caixa; conectada a renderização da cena à aplicação; removido o bloco de demo de cubo duplicado em `main.py`.
+- **Arquivos/funções criados ou revisados:** criado `src/environment/tanque.py` (`build_tanque`), `framework/core/object3d.py`, `framework/core/mesh.py`, `framework/core_ext/scene.py`, `framework/geometry/primitives.py`, `framework/material/basic.py` e `framework/material/texture.py`; revisado `main.py`; atualizado `README.md` e este registro.
+- **Origem do asset:** `assets/textures/concreto_teste.png` é uma textura sintética de 256 × 256 px, gerada com NumPy/Pygame, sem fonte externa; trocar por foto real antes da entrega final.
+- **Fonte conceitual:** estrutura de cena conforme capítulo 4 e mapeamento de textura conforme capítulo 5 de Stemkoski e Pascale (2022); implementações locais originais, sem cópia de código do livro.
+- **Verificação:** renderização real gerou cinco malhas e 445 cores distintas na região capturada do piso, com `glGetError()` sem erros.

@@ -1,76 +1,83 @@
-"""Valida a janela OpenGL com um cubo rotacionado por delta time."""
+"""Aplicação de validação da câmera e dos controles da cena de abdução."""
 import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "framework"))
 
+import pygame
 from OpenGL.GL import (
     GL_MODELVIEW,
     GL_PROJECTION,
-    GL_QUADS,
-    glBegin,
-    glColor3f,
-    glEnd,
+    glClearColor,
     glLoadIdentity,
     glMatrixMode,
-    glRotatef,
-    glTranslatef,
-    glVertex3f,
 )
 from OpenGL.GLU import gluPerspective
 
 from core.base import Base
+from core_ext.scene import Scene
+from src.controls.camera_rig import MovementRig
+from src.entities.disco_voador import DiscoVoador
+from src.entities.submarino import Submarino
+from src.environment.tanque import build_tanque
+from src.interaction.abducao import AbducaoController
 
 
-class DemoCubo(Base):
-    """Desenha um cubo colorido para testar o contexto e o loop OpenGL."""
+class Aplicacao(Base):
+    """Controla a câmera, pausa e ciclo de vida da cena sobre a Base."""
 
     def initialize(self):
-        """Configura a projeção e inicia o ângulo da animação."""
-        proporcao = self.largura / self.altura
+        """Cria a projeção, câmera, entidades e controlador da interação."""
         glMatrixMode(GL_PROJECTION)
         glLoadIdentity()
-        gluPerspective(45.0, proporcao, 0.1, 100.0)
+        gluPerspective(55.0, self.largura / self.altura, 0.1, 200.0)
         glMatrixMode(GL_MODELVIEW)
+        glClearColor(0.035, 0.07, 0.09, 1.0)
 
-        self.angulo = 0.0
+        self.camera_rig = MovementRig(posicao=(0.0, 8.0, 18.0))
+        self.camera_rig.pitch = -20.0
+        self.scene = Scene()
+        build_tanque(self.scene)
+
+        self.submarino = Submarino()
+        self.disco = DiscoVoador()
+        self.controlador = AbducaoController(self.submarino, self.disco)
+
+        self.pausado = False
+        self._espaco_anterior = False
+        self._r_anterior = False
 
     def update(self):
-        """Avança a rotação conforme o tempo real e desenha as seis faces."""
-        self.angulo = (self.angulo + 90.0 * self.delta_time) % 360.0
+        """Atualiza controles e cena; renderiza mesmo quando a animação pausa."""
+        delta_quadro = self.delta_time
+        teclas = pygame.key.get_pressed()
 
-        glMatrixMode(GL_MODELVIEW)
-        glLoadIdentity()
-        glTranslatef(0.0, 0.0, -5.0)
-        glRotatef(self.angulo, 1.0, 1.0, 0.0)
-        self._desenhar_cubo()
+        espaco_pressionado = bool(teclas[pygame.K_SPACE])
+        if espaco_pressionado and not self._espaco_anterior:
+            self.pausado = not self.pausado
+        self._espaco_anterior = espaco_pressionado
 
-    def _desenhar_cubo(self):
-        """Emite os vértices das faces usando o modo imediato do OpenGL."""
-        faces = (
-            ((-1, -1, 1), (1, -1, 1), (1, 1, 1), (-1, 1, 1)),
-            ((1, -1, -1), (-1, -1, -1), (-1, 1, -1), (1, 1, -1)),
-            ((-1, -1, -1), (-1, -1, 1), (-1, 1, 1), (-1, 1, -1)),
-            ((1, -1, 1), (1, -1, -1), (1, 1, -1), (1, 1, 1)),
-            ((-1, 1, 1), (1, 1, 1), (1, 1, -1), (-1, 1, -1)),
-            ((-1, -1, -1), (1, -1, -1), (1, -1, 1), (-1, -1, 1)),
-        )
-        cores = (
-            (0.95, 0.28, 0.22),
-            (0.25, 0.75, 0.95),
-            (0.35, 0.85, 0.48),
-            (0.98, 0.72, 0.22),
-            (0.72, 0.42, 0.9),
-            (0.95, 0.45, 0.68),
-        )
+        r_pressionado = bool(teclas[pygame.K_r])
+        if r_pressionado and not self._r_anterior:
+            self.controlador.reset()
+        self._r_anterior = r_pressionado
 
-        glBegin(GL_QUADS)
-        for cor, vertices in zip(cores, faces):
-            glColor3f(*cor)
-            for x, y, z in vertices:
-                glVertex3f(x, y, z)
-        glEnd()
+        # A câmera usa o tempo do quadro, inclusive enquanto a cena está pausada.
+        self.camera_rig.update(delta_quadro, teclas)
+        delta_logica = 0.0 if self.pausado else delta_quadro
+
+        if self._modelos_construidos():
+            self.controlador.update(delta_logica)
+            self.submarino.apply()
+            self.disco.apply()
+
+        self.camera_rig.apply()
+        self.scene.render()
+
+    def _modelos_construidos(self):
+        """Só habilita a lógica e o apply depois de ambas as raízes existirem."""
+        return self.submarino.root is not None and self.disco.root is not None
 
 
 if __name__ == "__main__":
-    DemoCubo()
+    Aplicacao()
