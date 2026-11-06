@@ -29,6 +29,15 @@ class Base:
         self.initialize()
         self.run()
 
+    @property
+    def deltaTime(self):
+        """Alias camelCase usado pela aplicação, preservando delta_time."""
+        return self.delta_time
+
+    @deltaTime.setter
+    def deltaTime(self, value):
+        self.delta_time = value
+
     def initialize(self):
         """Prepara os recursos específicos da cena na classe derivada."""
 
@@ -49,7 +58,7 @@ class Base:
                 break
 
             # O limite de quadros controla o uso de recursos; a animação usa o tempo medido.
-            self.delta_time = self.relogio.tick(60) / 1000.0
+            self.deltaTime = self.relogio.tick(60) / 1000.0
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             self.update()
             pygame.display.flip()

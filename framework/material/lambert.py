@@ -4,6 +4,7 @@ Fonte conceitual: modelo difuso Lambert no capítulo 6, "Lights", de Stemkoski
 e Pascale (2022). Este shader é uma implementação original do projeto.
 """
 import math
+from pathlib import Path
 
 from OpenGL.GL import (
     GL_COMPILE_STATUS,
@@ -28,94 +29,13 @@ from OpenGL.GL import (
     glGetUniformLocation,
     glLinkProgram,
     glShaderSource,
-    glUniform1i,
     glUniform1f,
-    glUniform3f,
+    glUniform1i,
     glUniform2f,
+    glUniform3f,
     glUniformMatrix4fv,
     glUseProgram,
 )
-
-
-_VERTEX_SHADER = """
-#version 120
-// gl_Vertex: posicao local emitida por glVertex; gl_Normal: normal da face.
-// gl_MultiTexCoord0: UV do piso; gl_ModelViewMatrix/ProjectionMatrix sao uniforms built-in.
-// u_light_view_projection_eye: transforma posicao em espaco de olho para clip da luz.
-varying vec3 v_normal_eye;
-varying vec2 v_uv;
-uniform mat4 u_light_view_projection_eye;
-varying vec4 v_shadow_position;
-
-void main() {
-    vec4 posicao_olho = gl_ModelViewMatrix * gl_Vertex;
-    // gl_NormalMatrix transforma a normal para o mesmo espaco visual da luz.
-    v_normal_eye = normalize(gl_NormalMatrix * gl_Normal);
-    v_uv = gl_MultiTexCoord0.xy;
-    v_shadow_position = u_light_view_projection_eye * posicao_olho;
-    gl_Position = gl_ProjectionMatrix * posicao_olho;
-}
-"""
-
-_FRAGMENT_SHADER = """
-#version 120
-// Direcao dos raios, ambiente e difuso da luz direcional em espaco de olho.
-uniform vec3 u_light_direction_eye;
-uniform vec3 u_light_ambient;
-uniform vec3 u_light_diffuse;
-// u_material_color: cor-base; u_material_alpha: alpha usado no blending.
-// u_emissive_color: contribuicao propria, sem depender da iluminacao difusa.
-// u_use_texture/u_texture: escolhem e amostram a imagem-base quando existente.
-uniform vec3 u_material_color;
-uniform float u_material_alpha;
-uniform vec3 u_emissive_color;
-uniform int u_use_texture;
-uniform sampler2D u_texture;
-// Mapa de profundidade, tamanho de texel, bias normalizado e liga/desliga.
-uniform sampler2D u_shadow_map;
-uniform vec2 u_shadow_texel_size;
-uniform float u_shadow_bias;
-uniform int u_shadow_enabled;
-varying vec3 v_normal_eye;
-varying vec2 v_uv;
-varying vec4 v_shadow_position;
-
-void main() {
-    vec3 cor_base = u_material_color;
-    if (u_use_texture != 0) {
-        cor_base *= texture2D(u_texture, v_uv).rgb;
-    }
-
-    // A normal transformada continua perpendicular a superficie apos o modelo/camera.
-    vec3 normal = normalize(v_normal_eye);
-    vec3 direcao_para_luz = normalize(-u_light_direction_eye);
-    // Lambert: o produto normal-luz controla o brilho difuso local de cada fragmento.
-    float difuso = max(dot(normal, direcao_para_luz), 0.0);
-
-    float sombra = 0.0;
-    vec3 coordenada_luz = v_shadow_position.xyz / v_shadow_position.w;
-    coordenada_luz = coordenada_luz * 0.5 + 0.5;
-    if (u_shadow_enabled != 0 &&
-        coordenada_luz.x >= 0.0 && coordenada_luz.x <= 1.0 &&
-        coordenada_luz.y >= 0.0 && coordenada_luz.y <= 1.0 &&
-        coordenada_luz.z >= 0.0 && coordenada_luz.z <= 1.0) {
-        // Bias aumenta em faces rasantes; a media 3x3 reduz bordas serrilhadas.
-        float bias = max(u_shadow_bias * (1.0 - difuso), u_shadow_bias * 0.2);
-        for (int x = -1; x <= 1; x++) {
-            for (int y = -1; y <= 1; y++) {
-                vec2 deslocamento = vec2(float(x), float(y)) * u_shadow_texel_size;
-                float profundidade_luz = texture2D(u_shadow_map, coordenada_luz.xy + deslocamento).r;
-                sombra += coordenada_luz.z - bias > profundidade_luz ? 1.0 : 0.0;
-            }
-        }
-        sombra /= 9.0;
-    }
-
-    // Este teste escurece a iluminacao local; a profundidade comparada e a sombra projetada.
-    vec3 iluminacao = u_light_ambient + u_light_diffuse * difuso * (1.0 - 0.72 * sombra);
-    gl_FragColor = vec4(cor_base * iluminacao + u_emissive_color, u_material_alpha);
-}
-"""
 
 
 class LightingContext:
@@ -128,6 +48,10 @@ class LightingContext:
         "u_material_color",
         "u_material_alpha",
         "u_emissive_color",
+        "u_material_specular",
+        "u_material_shininess",
+        "repeatUV",
+        "offsetUV",
         "u_use_texture",
         "u_texture",
         "u_light_view_projection_eye",
@@ -135,10 +59,12 @@ class LightingContext:
         "u_shadow_texel_size",
         "u_shadow_bias",
         "u_shadow_enabled",
+        "u_receive_shadow",
     )
 
-    def __init__(self, light):
+    def __init__(self, light, ambientLight=None):
         self.light = light
+        self.ambientLight = ambientLight
         self.yaw_camera = 0.0
         self.pitch_camera = 0.0
         self.shadow_texture = 0
@@ -146,6 +72,7 @@ class LightingContext:
         self.shadow_bias = 0.001
         self.shadow_matrix_eye = None
         self.depth_pass = False
+        self.receiveShadow = False
         self.program = self._build_program()
         self.uniforms = {
             nome: glGetUniformLocation(self.program, nome) for nome in self._UNIFORMS
@@ -164,8 +91,15 @@ class LightingContext:
         return shader
 
     def _build_program(self):
-        vertex_shader = self._compilar(GL_VERTEX_SHADER, _VERTEX_SHADER)
-        fragment_shader = self._compilar(GL_FRAGMENT_SHADER, _FRAGMENT_SHADER)
+        shader_dir = Path(__file__).resolve().parents[2] / "shaders"
+        vertex_shader = self._compilar(
+            GL_VERTEX_SHADER,
+            (shader_dir / "material.vert").read_text(encoding="utf-8"),
+        )
+        fragment_shader = self._compilar(
+            GL_FRAGMENT_SHADER,
+            (shader_dir / "material.frag").read_text(encoding="utf-8"),
+        )
         program = glCreateProgram()
         glAttachShader(program, vertex_shader)
         glAttachShader(program, fragment_shader)
@@ -185,25 +119,49 @@ class LightingContext:
         self.yaw_camera = yaw_degrees
         self.pitch_camera = pitch_degrees
 
+    def setCameraRotation(self, yawDegrees, pitchDegrees):
+        """Alias camelCase para a orientação da câmera usada pela luz."""
+        self.set_camera_rotation(yawDegrees, pitchDegrees)
+
     def set_shadow_map(self, texture_id, size, bias):
         """Vincula o depth texture e o bias que serao comparados no fragmento."""
         self.shadow_texture = texture_id
         self.shadow_size = size
         self.shadow_bias = bias
 
+    def setShadowMap(self, textureID, size, bias):
+        """Alias camelCase para associar a textura de profundidade."""
+        self.set_shadow_map(textureID, size, bias)
+
     def set_shadow_matrix(self, matrix_eye):
         """Atualiza a matriz que leva coordenadas do olho ao clip da luz."""
         self.shadow_matrix_eye = matrix_eye
+
+    def setShadowMatrix(self, matrixEye):
+        """Alias camelCase para atualizar a matriz da luz."""
+        self.set_shadow_matrix(matrixEye)
+
+    def setReceiveShadow(self, state=True):
+        """Define se o material atual recebe comparação com o depth map."""
+        self.receiveShadow = bool(state)
 
     def begin_depth_pass(self, depth_program):
         """Usa temporariamente o shader simples ao desenhar o depth target."""
         self.depth_pass = True
         glUseProgram(depth_program)
 
+    def beginDepthPass(self, depthProgram):
+        """Alias camelCase para iniciar o primeiro passe de sombra."""
+        self.begin_depth_pass(depthProgram)
+
     def end_depth_pass(self):
         """Restaura a selecao normal de programas por material."""
         self.depth_pass = False
         glUseProgram(0)
+
+    def endDepthPass(self):
+        """Alias camelCase para finalizar o primeiro passe."""
+        self.end_depth_pass()
 
     def _direcao_no_espaco_visual(self):
         """Transforma a direção mundial pelo giro inverso aplicado à câmera."""
@@ -225,14 +183,26 @@ class LightingContext:
         glUseProgram(self.program)
         direcao = self._direcao_no_espaco_visual()
         glUniform3f(self.uniforms["u_light_direction_eye"], *direcao)
-        glUniform3f(self.uniforms["u_light_ambient"], *self.light.ambient)
-        glUniform3f(self.uniforms["u_light_diffuse"], *self.light.diffuse)
+        ambient_color = self.ambientLight.color if self.ambientLight else (0.16, 0.17, 0.19)
+        ambient_strength = self.ambientLight.strength if self.ambientLight else 1.0
+        glUniform3f(
+            self.uniforms["u_light_ambient"],
+            *(componente * ambient_strength for componente in ambient_color),
+        )
+        glUniform3f(
+            self.uniforms["u_light_diffuse"],
+            *(componente * self.light.strength for componente in self.light.color),
+        )
         if self.shadow_matrix_eye is None:
             matrix = (0.0,) * 16
         else:
             matrix = self.shadow_matrix_eye.astype("float32").flatten(order="F")
         glUniformMatrix4fv(self.uniforms["u_light_view_projection_eye"], 1, GL_FALSE, matrix)
-        glUniform1i(self.uniforms["u_shadow_enabled"], int(self.shadow_texture != 0))
+        glUniform1i(
+            self.uniforms["u_shadow_enabled"],
+            int(self.shadow_texture != 0 and self.receiveShadow),
+        )
+        glUniform1i(self.uniforms["u_receive_shadow"], int(self.receiveShadow))
         glUniform1i(self.uniforms["u_shadow_map"], 1)
         glUniform2f(
             self.uniforms["u_shadow_texel_size"],
@@ -254,6 +224,10 @@ class LambertMaterial:
         texture_id=None,
         alpha=1.0,
         emissive=(0.0, 0.0, 0.0),
+        repeatUV=(1.0, 1.0),
+        offsetUV=(0.0, 0.0),
+        specular=(0.0, 0.0, 0.0),
+        shininess=1.0,
         transparent=False,
         casts_shadow=True,
     ):
@@ -262,6 +236,10 @@ class LambertMaterial:
         self.texture_id = texture_id
         self.alpha = alpha
         self.emissive = tuple(emissive)
+        self.repeatUV = tuple(repeatUV)
+        self.offsetUV = tuple(offsetUV)
+        self.specular = tuple(specular)
+        self.shininess = float(shininess)
         self.transparent = transparent
         self.casts_shadow = casts_shadow
 
@@ -273,6 +251,10 @@ class LambertMaterial:
         glUniform3f(self.lighting.uniforms["u_material_color"], *self.color)
         glUniform1f(self.lighting.uniforms["u_material_alpha"], self.alpha)
         glUniform3f(self.lighting.uniforms["u_emissive_color"], *self.emissive)
+        glUniform2f(self.lighting.uniforms["repeatUV"], *self.repeatUV)
+        glUniform2f(self.lighting.uniforms["offsetUV"], *self.offsetUV)
+        glUniform3f(self.lighting.uniforms["u_material_specular"], *self.specular)
+        glUniform1f(self.lighting.uniforms["u_material_shininess"], self.shininess)
         usa_textura = self.texture_id is not None
         glUniform1i(self.lighting.uniforms["u_use_texture"], int(usa_textura))
         glUniform1i(self.lighting.uniforms["u_texture"], 0)

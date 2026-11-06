@@ -25,7 +25,7 @@ class MovementRig:
     self.velocidade = velocidade
     self.velocidade_rotacao = velocidade_rotacao
 
-  def update(self, delta_time, teclas=None):
+  def update(self, deltaTime, teclas=None):
     """Atualiza posição e orientação usando o tempo real do quadro."""
     if teclas is None:
       teclas = pygame.key.get_pressed()
@@ -46,11 +46,11 @@ class MovementRig:
       lateral /= comprimento
 
     angulo_yaw = math.radians(self.yaw)
-    self.x += self.velocidade * delta_time * (
+    self.x += self.velocidade * deltaTime * (
       lateral * math.cos(angulo_yaw) + frente * math.sin(angulo_yaw)
     )
-    self.y += self.velocidade * delta_time * vertical
-    self.z += self.velocidade * delta_time * (
+    self.y += self.velocidade * deltaTime * vertical
+    self.z += self.velocidade * deltaTime * (
       lateral * math.sin(angulo_yaw) - frente * math.cos(angulo_yaw)
     )
 
@@ -60,7 +60,7 @@ class MovementRig:
     giro_vertical = float(self._pressionada(teclas, pygame.K_UP)) - float(
       self._pressionada(teclas, pygame.K_DOWN)
     )
-    passo_rotacao = self.velocidade_rotacao * delta_time
+    passo_rotacao = self.velocidade_rotacao * deltaTime
     self.yaw += giro_horizontal * passo_rotacao
     self.pitch = max(
       -85.0,

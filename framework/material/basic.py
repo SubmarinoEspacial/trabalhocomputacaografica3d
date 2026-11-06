@@ -1,5 +1,5 @@
 """Materiais sólidos do framework local, calculados pelo shader Lambert."""
-from framework.material.lambert import LambertMaterial
+from material.lambert import LambertMaterial
 
 
 class ColorMaterial(LambertMaterial):

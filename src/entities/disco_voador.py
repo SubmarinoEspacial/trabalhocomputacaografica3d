@@ -1,10 +1,10 @@
 """Disco voador estilizado composto por geometrias do framework local."""
 import math
 import numpy as np
-from framework.core.mesh import Mesh
-from framework.core.object3d import Object3D
-from framework.geometry.primitives import ConeGeometry, SphereGeometry
-from framework.material.basic import ColorMaterial
+from core.mesh import Mesh
+from core.object3d import Object3D
+from geometry.primitives import ConeGeometry, SphereGeometry
+from material.phong import PhongMaterial
 from src import config as C
 
 
@@ -30,16 +30,16 @@ class DiscoVoador:
         if self.root is not None:
             return self.root
 
-        material_corpo = ColorMaterial(lighting, (0.42, 0.54, 0.62))
-        material_cupula = ColorMaterial(lighting, (0.18, 0.72, 0.82))
-        material_anel = ColorMaterial(lighting, (0.92, 0.62, 0.16))
+        material_corpo = PhongMaterial(lighting, (0.42, 0.54, 0.62))
+        material_cupula = PhongMaterial(lighting, (0.18, 0.72, 0.82))
+        material_anel = PhongMaterial(lighting, (0.92, 0.62, 0.16))
         material_luzes = (
-            ColorMaterial(lighting, (0.96, 0.22, 0.16)),
-            ColorMaterial(lighting, (0.18, 0.9, 0.58)),
-            ColorMaterial(lighting, (0.2, 0.62, 0.98)),
-            ColorMaterial(lighting, (0.98, 0.86, 0.32)),
+            PhongMaterial(lighting, (0.96, 0.22, 0.16)),
+            PhongMaterial(lighting, (0.18, 0.9, 0.58)),
+            PhongMaterial(lighting, (0.2, 0.62, 0.98)),
+            PhongMaterial(lighting, (0.98, 0.86, 0.32)),
         )
-        material_feixe = ColorMaterial(
+        material_feixe = PhongMaterial(
             lighting,
             (0.24, 0.68, 0.9),
             alpha=0.32,
@@ -100,17 +100,17 @@ class DiscoVoador:
         if self.root is None:
             return
 
-        self.root.position = (
+        self.root.setPosition(
             float(self.position[0]),
             float(self.position[1] + self.hover_offset),
             float(self.position[2]),
         )
         if self.anel is not None:
-            self.anel.rotation = (0.0, math.degrees(self.ring_angle), 0.0)
+            self.anel.setRotation(0.0, math.degrees(self.ring_angle), 0.0)
 
         if self.feixe is not None:
             amount = max(0.0, min(1.0, float(self.beam_amount)))
             self.feixe.visible = amount > 0.0
-            self.feixe.scale = (amount, amount, amount)
+            self.feixe.setScale(amount, amount, amount)
             self.feixe.material.alpha = 0.32 * amount
             self.feixe.material.emissive = (0.08 * amount, 0.24 * amount, 0.34 * amount)

@@ -2,10 +2,10 @@
 import math
 
 import numpy as np
-from framework.core.mesh import Mesh
-from framework.core.object3d import Object3D
-from framework.geometry.primitives import BoxGeometry, CylinderGeometry
-from framework.material.basic import ColorMaterial
+from core.mesh import Mesh
+from core.object3d import Object3D
+from geometry.primitives import BoxGeometry, CylinderGeometry
+from material.phong import PhongMaterial
 from src import config as C
 
 
@@ -27,12 +27,12 @@ class Submarino:
         if self.root is not None:
             return self.root
 
-        material_casco = ColorMaterial(lighting, (0.08, 0.24, 0.36))
-        material_proa = ColorMaterial(lighting, (0.9, 0.66, 0.22))
-        material_torre = ColorMaterial(lighting, (0.18, 0.48, 0.57))
-        material_periscopio = ColorMaterial(lighting, (0.82, 0.88, 0.78))
-        material_helice = ColorMaterial(lighting, (0.84, 0.32, 0.16))
-        material_aletas = ColorMaterial(lighting, (0.12, 0.39, 0.48))
+        material_casco = PhongMaterial(lighting, (0.08, 0.24, 0.36))
+        material_proa = PhongMaterial(lighting, (0.9, 0.66, 0.22))
+        material_torre = PhongMaterial(lighting, (0.18, 0.48, 0.57))
+        material_periscopio = PhongMaterial(lighting, (0.82, 0.88, 0.78))
+        material_helice = PhongMaterial(lighting, (0.84, 0.32, 0.16))
+        material_aletas = PhongMaterial(lighting, (0.12, 0.39, 0.48))
 
         self.root = Object3D()
 
@@ -127,8 +127,8 @@ class Submarino:
         if self.root is None:
             return
 
-        self.root.position = tuple(float(coordenada) for coordenada in self.position)
-        self.root.rotation = (0.0, math.degrees(self.yaw), 0.0)
-        self.root.scale = (self.scale, self.scale, self.scale)
+        self.root.setPosition(*(float(coordenada) for coordenada in self.position))
+        self.root.setRotation(0.0, math.degrees(self.yaw), 0.0)
+        self.root.setScale(self.scale, self.scale, self.scale)
         if self.helice is not None:
-            self.helice.rotation = (math.degrees(self.prop_angle), 0.0, 0.0)
+            self.helice.setRotation(math.degrees(self.prop_angle), 0.0, 0.0)

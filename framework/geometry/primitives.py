@@ -1,4 +1,8 @@
-"""Geometrias simples criadas para a cena de testes."""
+"""Geometrias com normais planas por face e normais suaves na esfera.
+
+BoxGeometry/CylinderGeometry/ConeGeometry enviam normais de face; SphereGeometry
+envia normais radiais por vertice, interpoladas para o calculo Phong por fragmento.
+"""
 import math
 
 from OpenGL.GL import (
@@ -16,21 +20,19 @@ from OpenGL.GL import (
 class PlaneGeometry:
     """Plano horizontal com coordenadas UV configuráveis para repetição."""
 
-    def __init__(self, width, depth, uv_repeat=(1.0, 1.0)):
+    def __init__(self, width, depth):
         self.width = width
         self.depth = depth
-        self.uv_repeat = uv_repeat
 
     def draw(self):
         """Repete o UV por quantidade de ladrilhos, mantendo proporção física."""
         half_width = self.width / 2.0
         half_depth = self.depth / 2.0
-        repeat_u, repeat_v = self.uv_repeat
         vertices = (
             ((-half_width, 0.0, -half_depth), (0.0, 0.0)),
-            ((-half_width, 0.0, half_depth), (0.0, repeat_v)),
-            ((half_width, 0.0, half_depth), (repeat_u, repeat_v)),
-            ((half_width, 0.0, -half_depth), (repeat_u, 0.0)),
+            ((-half_width, 0.0, half_depth), (0.0, 1.0)),
+            ((half_width, 0.0, half_depth), (1.0, 1.0)),
+            ((half_width, 0.0, -half_depth), (1.0, 0.0)),
         )
 
         glBegin(GL_QUADS)

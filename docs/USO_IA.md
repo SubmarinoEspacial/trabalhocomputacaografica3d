@@ -70,3 +70,26 @@
 - **Feito:** o feixe usa alpha proporcional a `beam_amount` e uma contribuição emissiva Lambert; a cena desenha primeiro todos os opacos e depois os transparentes com depth test ligado e depth writes desligados.
 - **Sombras:** `casts_shadow=False` exclui o feixe do depth pass. O teste confirmou que o depth map permaneceu idêntico com o feixe visível/oculto e que o estado de blending/depth mask foi restaurado.
 - **Verificação:** o feixe alterou 1.027 pixels na captura; nenhum erro GL. Não adicionei bloom/glow por pós-processamento, pois exigiria um passe adicional de blur; a emissão do material já destaca o feixe sem introduzir esse custo.
+
+## Revisão de convenções e inventário
+- **Feito:** imports do ponto de entrada padronizados para `core.*`, `core_ext.*`, `light.*` e `material.*`; aliases camelCase adicionados sem remover APIs existentes; `pyrightconfig.json` informa `framework/` ao Pylance.
+- **Auditoria:** componentes disponíveis, ausentes e placeholders vazios detalhados em `framework/README.md`. `README.md` não foi alterado.
+- **Arquivos/funções alterados:** `main.py`, `pyrightconfig.json`, `src/__init__.py`, `src/controls/camera_rig.py`, entidades, ambiente, `framework/core/base.py` e módulos importadores; adicionados aliases `deltaTime`, `Object3D.setPosition`, `setRotation`, `setScale` e métodos camelCase do `LightingContext` sem remover nomes anteriores.
+- **Verificação:** dois frames renderizaram após a mudança de imports; sem erros OpenGL e sem erros Pylance.
+
+## Textura UV por uniforms
+- **Feito:** o piso usa `Texture` independente e `TextureMaterial`; a geometria fornece UV unitário e o vertex shader calcula `vertexUV * repeatUV + offsetUV`.
+- **Arquivos/funções alterados:** criado `framework/core/texture.py`; revisados `framework/material/texture.py`, `framework/material/lambert.py`, `framework/geometry/primitives.py`, `src/environment/tanque.py`; criados `shaders/material.vert` e `shaders/material.frag`.
+- **Verificação:** uniforms lidos com `repeatUV=(5,3.75)` e `offsetUV=(0,0)`; parâmetros de textura `GL_REPEAT` e min/mag `GL_LINEAR`; cena renderizada sem erro GL.
+
+## Materiais Phong e luz ambiente
+- **Feito:** adicionadas `Light`/`AmbientLight`, `DirectionalLight.setDirection()` e `PhongMaterial`; piso e paredes permanecem Lambert, submarino e disco usam especular Phong.
+- **Arquivos/funções alterados:** criados `framework/light/light.py`, `framework/light/ambient.py`, `framework/material/phong.py`; revisados `framework/light/directional.py`, `framework/material/lambert.py`, `src/entities/submarino.py`, `src/entities/disco_voador.py`, `main.py` e `framework/geometry/primitives.py`.
+- **Normais e shading:** caixas/cilindros/cones enviam normal por face; esfera envia normal radial por vértice. Usamos Phong shading: normais interpoladas e iluminação ambiente+difusa+especular por fragmento. Comentários contrastam isso com flat (normal por face) e Gouraud (iluminação por vértice).
+- **Verificação:** cena renderizou 7 meshes com 1.658 cores distintas e sem erros OpenGL; materiais Phong/Lambert e luzes ambiente/direcional confirmados em runtime.
+
+## Shadow mapping compatível com seção 6.9
+- **Feito:** `DirectionalLight.enableShadows()` liga `ShadowCamera`, `DepthMaterial` e depth target; `ShadowMap` mantém os dois passes e `Mesh.setCastShadow()`/`setReceiveShadow()` controlam inclusão e recepção.
+- **Arquivos/funções alterados:** criados `framework/material/depth.py`, `framework/light/ambient.py`, `framework/light/light.py`, `framework/material/phong.py` e `framework/core/texture.py`; revisados `framework/light/directional.py`, `framework/light/shadow_map.py`, `framework/core/base.py`, `framework/core/object3d.py`, `framework/core/mesh.py`, `framework/core_ext/scene.py`, materiais, geometrias, `main.py`, tanque e shaders; `README.md` não foi alterado.
+- **Comparação com o livro:** esta é uma adaptação local das responsabilidades `ShadowMaterial`/`ShadowCamera`/`RenderTarget` do capítulo 6.9, não classes copiadas. `Renderer` genérico continua ausente; a orquestração dos passes permanece em `ShadowMap`/`main.py`.
+- **Verificação:** cena renderizou após cada item; sombra no chão foi de 2.650 pixels na patrulha a 572 na subida, com centro deslocado; teste da máquina de estados passou e `src/interaction/abducao.py` não foi alterado.

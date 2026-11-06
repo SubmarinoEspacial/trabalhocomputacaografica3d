@@ -1,5 +1,5 @@
 """Malha que associa uma geometria a um material do framework local."""
-from framework.core.object3d import Object3D
+from core.object3d import Object3D
 
 
 class Mesh(Object3D):
@@ -17,8 +17,11 @@ class Mesh(Object3D):
             return
         if render_pass == "transparent" and not material_transparente:
             return
-        if render_pass == "shadow" and not getattr(self.material, "casts_shadow", True):
+        if render_pass == "shadow" and not self.castShadow:
             return
+        lighting = getattr(self.material, "lighting", None)
+        if lighting is not None and render_pass != "shadow":
+            lighting.setReceiveShadow(self.receiveShadow)
 
         self.material.apply()
         try:

@@ -20,12 +20,38 @@ class Object3D:
         self.rotation = tuple(rotation)
         self.scale = tuple(scale)
         self.visible = True
+        self.castShadow = False
+        self.receiveShadow = False
         self.children = []
 
     def add(self, *objects):
         """Adiciona nós filhos para compor a hierarquia da cena."""
         self.children.extend(objects)
         return self
+
+    def setPosition(self, x, y, z):
+        """Alias camelCase para atualizar a posição sem remover a API existente."""
+        self.position = (x, y, z)
+
+    def setRotation(self, x, y, z):
+        """Alias camelCase para atualizar os ângulos Euler do nó."""
+        self.rotation = (x, y, z)
+
+    def setScale(self, x, y, z):
+        """Alias camelCase para atualizar a escala do nó."""
+        self.scale = (x, y, z)
+
+    def setCastShadow(self, state=True):
+        """Define se este ramo participa do passe de profundidade da luz."""
+        self.castShadow = bool(state)
+        for child in self.children:
+            child.setCastShadow(state)
+
+    def setReceiveShadow(self, state=True):
+        """Define se este ramo recebe o teste de profundidade da sombra."""
+        self.receiveShadow = bool(state)
+        for child in self.children:
+            child.setReceiveShadow(state)
 
     def render(self, render_pass=None):
         """Aplica a transformação local e encaminha o passe pela hierarquia."""

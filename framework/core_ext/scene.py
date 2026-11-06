@@ -20,7 +20,7 @@ from OpenGL.GL import (
     glIsEnabled,
 )
 
-from framework.core.object3d import Object3D
+from core.object3d import Object3D
 
 
 class Scene(Object3D):
