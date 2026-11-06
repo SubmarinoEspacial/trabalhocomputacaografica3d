@@ -31,7 +31,7 @@ W/A/S/D mover, Q/E subir/descer, setas girar, ESPAÇO pausar/retomar, R reinicia
 | R4 Câmera e pausa | `src/controls/camera_rig.py`, `main.py` |
 | R5 Textura | `src/environment/tanque.py` (`build_tanque`), `framework/material/texture.py` |
 | R6 Iluminação Lambert e normais | `main.py` (`setup_luz`), `framework/light/directional.py`, `framework/material/lambert.py`, `framework/geometry/primitives.py` |
-| R7 Sombras projetadas | Não implementadas; exigem shadow map/depth pass, diferente do sombreamento difuso por normal |
+| R7 Sombras projetadas | `framework/light/shadow_map.py`, shaders em `shaders/depth.vert` e `shaders/depth.frag` |
 | Shader / uniforms | `framework/material/lambert.py` (`u_light_direction_eye`, `u_light_ambient`, `u_light_diffuse`, `u_material_color`, `u_use_texture`, `u_texture`) |
 
 ## Contribuições individuais

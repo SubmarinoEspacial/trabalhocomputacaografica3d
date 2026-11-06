@@ -22,6 +22,7 @@ from src.entities.submarino import Submarino
 from src.environment.tanque import build_tanque
 from src.interaction.abducao import AbducaoController
 from framework.light.directional import DirectionalLight
+from framework.light.shadow_map import ShadowMap
 from framework.material.lambert import LightingContext
 
 
@@ -31,7 +32,7 @@ def setup_luz():
     # O shader recebe u_light_direction_eye, u_light_ambient e u_light_diffuse.
     # Cada material envia u_material_color e, no piso, u_use_texture/u_texture.
     # A normal perpendicular à face define o difuso pelo produto escalar com a luz.
-    # Isso é sombreamento local; sombra projetada exige outro passe, como shadow map.
+    # Lambert controla brilho local; ShadowMap abaixo calcula sombra projetada em outro passe.
     luz = DirectionalLight(
         direction=(-0.4, -1.0, -0.3),
         ambient=(0.16, 0.17, 0.19),
@@ -52,6 +53,7 @@ class Aplicacao(Base):
         glClearColor(0.035, 0.07, 0.09, 1.0)
 
         self.lighting = setup_luz()
+        self.shadow_map = ShadowMap(self.lighting)
         self.camera_rig = MovementRig(posicao=(0.0, 8.0, 18.0))
         self.camera_rig.pitch = -20.0
         self.scene = Scene()
@@ -95,6 +97,7 @@ class Aplicacao(Base):
         if self.disco.root is not None:
             self.disco.apply()
 
+        self.shadow_map.render(self.scene, self.camera_rig)
         self.camera_rig.apply()
         self.scene.render()
 

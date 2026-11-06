@@ -7,5 +7,5 @@ o projeto, não cópias do código do livro. A cena utiliza `core/object3d.py`,
 cilindro, esfera e cone) e `material/texture.py`; `Object3D.visible` oculta ramos
 inteiros. A iluminação Lambert usa `light/directional.py` e um shader único em
 `material/lambert.py`; as normais das geometrias alimentam o cálculo difuso.
-Sombras projetadas não estão implementadas. Os comentários registram as fontes
-conceituais do livro sem copiar sua implementação.
+`light/shadow_map.py` executa os dois passes de shadow mapping com shaders em
+`shaders/`. Os comentários registram as fontes conceituais sem copiar código.

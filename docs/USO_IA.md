@@ -59,3 +59,9 @@
 - **Arquivos/funções criados ou revisados:** criados `framework/light/directional.py` e `framework/material/lambert.py`; revisados `framework/material/basic.py`, `framework/material/texture.py`, `framework/geometry/primitives.py`, `src/environment/tanque.py`, `src/entities/submarino.py`, `src/entities/disco_voador.py`, `main.py`, `README.md` e `framework/README.md`.
 - **Conceitos documentados no código:** uniforms da luz e do material, transformação das normais para o espaço visual, difuso Lambert por produto escalar; sombreamento local não equivale a sombra projetada, que exige shadow map/depth pass.
 - **Verificação:** shader compilado no OpenGL 4.6 Compatibility Profile; cena completa renderizou sem erro GL; uma caixa de cor uniforme produziu intensidades distintas em faces com normais diferentes (`(83,83,81)` e `(201,195,181)`).
+
+## Shadow mapping
+- **Feito:** implementado passe ortográfico da luz para depth texture e passe Lambert normal com comparação 3×3 PCF e bias ajustado pela orientação da face.
+- **Arquivos/funções criados ou revisados:** criado `framework/core_ext/render_target.py` (`DepthRenderTarget`), `framework/light/shadow_map.py` (`ShadowMap.render`), `shaders/depth.vert` e `shaders/depth.frag`; revisados `framework/material/lambert.py`, `main.py`, `README.md` e este registro.
+- **Uniforms e atributos:** comentários nos shaders descrevem `gl_Vertex`, matrizes built-in, `u_light_view_projection_eye`, uniforms da luz/material, depth sampler, texel size, bias e flag de sombra. O passe de depth não declara uniforms próprios; o depth test grava `gl_FragCoord.z`.
+- **Verificação:** FBO completo e shaders de depth compilados no driver; máscara no piso mudou de 2.662 pixels na patrulha para 568 na subida, e o centro mudou de `[278,214]` para `[292,515]`; nenhum erro GL.
