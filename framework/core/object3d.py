@@ -27,8 +27,8 @@ class Object3D:
         self.children.extend(objects)
         return self
 
-    def render(self):
-        """Aplica a transformação local e renderiza recursivamente os filhos."""
+    def render(self, render_pass=None):
+        """Aplica a transformação local e encaminha o passe pela hierarquia."""
         if not self.visible:
             return
 
@@ -39,11 +39,11 @@ class Object3D:
             glRotatef(self.rotation[1], 0.0, 1.0, 0.0)
             glRotatef(self.rotation[2], 0.0, 0.0, 1.0)
             glScalef(*self.scale)
-            self.draw()
+            self.draw(render_pass)
             for child in self.children:
-                child.render()
+                child.render(render_pass)
         finally:
             glPopMatrix()
 
-    def draw(self):
+    def draw(self, render_pass=None):
         """Ponto de extensão para a geometria de cada nó."""

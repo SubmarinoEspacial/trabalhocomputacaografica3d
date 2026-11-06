@@ -63,8 +63,12 @@ _FRAGMENT_SHADER = """
 uniform vec3 u_light_direction_eye;
 uniform vec3 u_light_ambient;
 uniform vec3 u_light_diffuse;
-// Cor do material e selecao/amostragem da textura-base.
+// u_material_color: cor-base; u_material_alpha: alpha usado no blending.
+// u_emissive_color: contribuicao propria, sem depender da iluminacao difusa.
+// u_use_texture/u_texture: escolhem e amostram a imagem-base quando existente.
 uniform vec3 u_material_color;
+uniform float u_material_alpha;
+uniform vec3 u_emissive_color;
 uniform int u_use_texture;
 uniform sampler2D u_texture;
 // Mapa de profundidade, tamanho de texel, bias normalizado e liga/desliga.
@@ -109,7 +113,7 @@ void main() {
 
     // Este teste escurece a iluminacao local; a profundidade comparada e a sombra projetada.
     vec3 iluminacao = u_light_ambient + u_light_diffuse * difuso * (1.0 - 0.72 * sombra);
-    gl_FragColor = vec4(cor_base * iluminacao, 1.0);
+    gl_FragColor = vec4(cor_base * iluminacao + u_emissive_color, u_material_alpha);
 }
 """
 
@@ -122,6 +126,8 @@ class LightingContext:
         "u_light_ambient",
         "u_light_diffuse",
         "u_material_color",
+        "u_material_alpha",
+        "u_emissive_color",
         "u_use_texture",
         "u_texture",
         "u_light_view_projection_eye",
@@ -241,10 +247,23 @@ class LightingContext:
 class LambertMaterial:
     """Material Lambert de cor uniforme ou combinado com uma textura."""
 
-    def __init__(self, lighting, color, texture_id=None):
+    def __init__(
+        self,
+        lighting,
+        color,
+        texture_id=None,
+        alpha=1.0,
+        emissive=(0.0, 0.0, 0.0),
+        transparent=False,
+        casts_shadow=True,
+    ):
         self.lighting = lighting
         self.color = tuple(color)
         self.texture_id = texture_id
+        self.alpha = alpha
+        self.emissive = tuple(emissive)
+        self.transparent = transparent
+        self.casts_shadow = casts_shadow
 
     def apply(self):
         """Envia cor/textura e uniforms para o shader Lambert compartilhado."""
@@ -252,6 +271,8 @@ class LambertMaterial:
             return
         self.lighting.activate()
         glUniform3f(self.lighting.uniforms["u_material_color"], *self.color)
+        glUniform1f(self.lighting.uniforms["u_material_alpha"], self.alpha)
+        glUniform3f(self.lighting.uniforms["u_emissive_color"], *self.emissive)
         usa_textura = self.texture_id is not None
         glUniform1i(self.lighting.uniforms["u_use_texture"], int(usa_textura))
         glUniform1i(self.lighting.uniforms["u_texture"], 0)

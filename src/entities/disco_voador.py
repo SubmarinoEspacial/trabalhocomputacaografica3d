@@ -39,7 +39,14 @@ class DiscoVoador:
             ColorMaterial(lighting, (0.2, 0.62, 0.98)),
             ColorMaterial(lighting, (0.98, 0.86, 0.32)),
         )
-        material_feixe = ColorMaterial(lighting, (0.35, 0.82, 0.96))
+        material_feixe = ColorMaterial(
+            lighting,
+            (0.24, 0.68, 0.9),
+            alpha=0.32,
+            emissive=(0.08, 0.24, 0.34),
+            transparent=True,
+            casts_shadow=False,
+        )
 
         self.root = Object3D()
         self.corpo = Object3D()
@@ -105,3 +112,5 @@ class DiscoVoador:
             amount = max(0.0, min(1.0, float(self.beam_amount)))
             self.feixe.visible = amount > 0.0
             self.feixe.scale = (amount, amount, amount)
+            self.feixe.material.alpha = 0.32 * amount
+            self.feixe.material.emissive = (0.08 * amount, 0.24 * amount, 0.34 * amount)

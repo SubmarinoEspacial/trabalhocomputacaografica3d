@@ -147,7 +147,7 @@ class ShadowMap:
 
         try:
             self.lighting.begin_depth_pass(self.depth_program)
-            scene.render()
+            scene.render(shadow_pass=True)
         finally:
             self.lighting.end_depth_pass()
             glMatrixMode(GL_MODELVIEW)

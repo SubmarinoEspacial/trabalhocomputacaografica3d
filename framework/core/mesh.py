@@ -10,7 +10,16 @@ class Mesh(Object3D):
         self.geometry = geometry
         self.material = material
 
-    def draw(self):
+    def draw(self, render_pass=None):
+        """Desenha apenas no passe compatível com alpha e capacidade de sombra."""
+        material_transparente = getattr(self.material, "transparent", False)
+        if render_pass == "opaque" and material_transparente:
+            return
+        if render_pass == "transparent" and not material_transparente:
+            return
+        if render_pass == "shadow" and not getattr(self.material, "casts_shadow", True):
+            return
+
         self.material.apply()
         try:
             self.geometry.draw()

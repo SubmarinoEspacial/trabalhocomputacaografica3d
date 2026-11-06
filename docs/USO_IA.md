@@ -65,3 +65,8 @@
 - **Arquivos/funções criados ou revisados:** criado `framework/core_ext/render_target.py` (`DepthRenderTarget`), `framework/light/shadow_map.py` (`ShadowMap.render`), `shaders/depth.vert` e `shaders/depth.frag`; revisados `framework/material/lambert.py`, `main.py`, `README.md` e este registro.
 - **Uniforms e atributos:** comentários nos shaders descrevem `gl_Vertex`, matrizes built-in, `u_light_view_projection_eye`, uniforms da luz/material, depth sampler, texel size, bias e flag de sombra. O passe de depth não declara uniforms próprios; o depth test grava `gl_FragCoord.z`.
 - **Verificação:** FBO completo e shaders de depth compilados no driver; máscara no piso mudou de 2.662 pixels na patrulha para 568 na subida, e o centro mudou de `[278,214]` para `[292,515]`; nenhum erro GL.
+
+## Feixe translúcido
+- **Feito:** o feixe usa alpha proporcional a `beam_amount` e uma contribuição emissiva Lambert; a cena desenha primeiro todos os opacos e depois os transparentes com depth test ligado e depth writes desligados.
+- **Sombras:** `casts_shadow=False` exclui o feixe do depth pass. O teste confirmou que o depth map permaneceu idêntico com o feixe visível/oculto e que o estado de blending/depth mask foi restaurado.
+- **Verificação:** o feixe alterou 1.027 pixels na captura; nenhum erro GL. Não adicionei bloom/glow por pós-processamento, pois exigiria um passe adicional de blur; a emissão do material já destaca o feixe sem introduzir esse custo.
