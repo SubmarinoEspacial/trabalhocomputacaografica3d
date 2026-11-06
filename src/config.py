@@ -24,6 +24,6 @@ FLEE_TIME = 1.5
 BEAM_TIME = 1.0
 ABDUCT_TIME = 4.0
 ABDUCT_RISE = 2.5
-ABDUCT_SPIN = 2.0           # rad/s
+ABDUCT_SPIN = math.pi / 4   # rad/s: meia volta ao longo dos 4 s de subida
 ABDUCT_MIN_SCALE = 0.4
 FINAL_WAIT = 1.5

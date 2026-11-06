@@ -40,3 +40,9 @@
 - **Feito:** implementados `DiscoVoador.build()` e `apply()` com corpo esférico achatado, cúpula, pivô com oito luzes, cone de feixe oculto quando desligado e escala ligada ao nível do feixe; root adicionado à cena.
 - **Arquivos/funções criados ou revisados:** revisado `src/entities/disco_voador.py`; adicionadas `SphereGeometry`, `ConeGeometry` e visibilidade recursiva em `framework/geometry/primitives.py` e `framework/core/object3d.py`; revisado `main.py`; atualizado este registro e `framework/README.md`.
 - **Verificação:** ciclo simulado percorreu PATRULHA a FINAL e reiniciou; o anel girou, o hover foi aplicado e o feixe ficou visível durante FEIXE/ABDUCAO e apagou no reset. Captura OpenGL mostrou disco e submarino juntos.
+
+## Revisão visual do ciclo
+- **Feito:** executado e capturado o ciclo completo em OpenGL, incluindo quatro quadrantes da órbita, início/fim do feixe, subida e reinício.
+- **Valor alterado em `src/config.py`:** `ABDUCT_SPIN` de `2.0` para `math.pi / 4` rad/s. Com subida de 4 s, isso reduz a rotação de 8 rad (1,27 voltas, rápida) para aproximadamente 3,17 rad (meia-volta, gradual e legível).
+- **Valores mantidos:** `FLEE_TIME`, `DISC_SPEED`, `ORBIT_RADIUS`, `ORBIT_OMEGA`, `BEAM_TIME`, `ABDUCT_TIME`, `ABDUCT_RISE` e `ABDUCT_MIN_SCALE` mantiveram posicionamento, órbita, feixe e subida coerentes nas capturas.
+- **Verificação:** ordem completa dos estados confirmada; durante FEIXE o submarino permanece em `y=1` com feixe em `0,55`; a meio da abdução está em `y=2,25`, escala `0,7` e yaw `pi/2`; o reinício restaura a cena. Nenhuma lógica foi alterada.
