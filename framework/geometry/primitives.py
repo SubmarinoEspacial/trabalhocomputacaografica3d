@@ -4,15 +4,34 @@ BoxGeometry/CylinderGeometry/ConeGeometry enviam normais de face; SphereGeometry
 envia normais radiais por vertice, interpoladas para o calculo Phong por fragmento.
 """
 import math
+import ctypes
+import numpy as np
 
 from OpenGL.GL import (
+    GL_ARRAY_BUFFER,
+    GL_ELEMENT_ARRAY_BUFFER,
+    GL_FLOAT,
     GL_QUADS,
     GL_TRIANGLES,
     GL_TRIANGLE_FAN,
+    GL_STATIC_DRAW,
+    GL_UNSIGNED_INT,
+    GL_VERTEX_ARRAY,
+    GL_NORMAL_ARRAY,
+    GL_TEXTURE_COORD_ARRAY,
+    glBindBuffer,
     glBegin,
+    glBufferData,
     glEnd,
+    glDrawElements,
+    glEnableClientState,
+    glDisableClientState,
+    glGenBuffers,
     glNormal3f,
     glTexCoord2f,
+    glNormalPointer,
+    glVertexPointer,
+    glTexCoordPointer,
     glVertex3f,
 )
 
@@ -41,6 +60,64 @@ class PlaneGeometry:
             glTexCoord2f(*uv)
             glVertex3f(*position)
         glEnd()
+
+
+class WaterGridGeometry:
+    """Grade indexada em VBO; cada vértice carrega posição, normal e UV."""
+
+    def __init__(self, width, depth, segments=200):
+        self.width = width
+        self.depth = depth
+        self.segments = max(2, segments)
+        eixo_x = np.linspace(-width / 2.0, width / 2.0, self.segments, dtype=np.float32)
+        eixo_z = np.linspace(-depth / 2.0, depth / 2.0, self.segments, dtype=np.float32)
+        grid_x, grid_z = np.meshgrid(eixo_x, eixo_z)
+        vertices = np.zeros((self.segments * self.segments, 8), dtype=np.float32)
+        vertices[:, 0] = grid_x.reshape(-1)
+        vertices[:, 2] = grid_z.reshape(-1)
+        vertices[:, 4] = 1.0
+        vertices[:, 6] = np.linspace(0.0, 1.0, self.segments, dtype=np.float32).repeat(self.segments)
+        vertices[:, 7] = np.tile(
+            np.linspace(0.0, 1.0, self.segments, dtype=np.float32), self.segments
+        )
+
+        indices = []
+        for row in range(self.segments - 1):
+            for column in range(self.segments - 1):
+                lower_left = row * self.segments + column
+                lower_right = lower_left + 1
+                upper_left = lower_left + self.segments
+                upper_right = upper_left + 1
+                indices.extend((lower_left, upper_left, upper_right, lower_left, upper_right, lower_right))
+        self.indices = np.asarray(indices, dtype=np.uint32)
+        self.vertex_count = self.indices.size
+
+        self.vertex_buffer = glGenBuffers(1)
+        glBindBuffer(GL_ARRAY_BUFFER, self.vertex_buffer)
+        glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
+        self.index_buffer = glGenBuffers(1)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.index_buffer)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, self.indices.nbytes, self.indices, GL_STATIC_DRAW)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+
+    def draw(self):
+        """Emite a grade estática; o shader desloca altura e normal em GPU."""
+        stride = 8 * np.dtype(np.float32).itemsize
+        glBindBuffer(GL_ARRAY_BUFFER, self.vertex_buffer)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, self.index_buffer)
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glEnableClientState(GL_NORMAL_ARRAY)
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        glVertexPointer(3, GL_FLOAT, stride, ctypes.c_void_p(0))
+        glNormalPointer(GL_FLOAT, stride, ctypes.c_void_p(12))
+        glTexCoordPointer(2, GL_FLOAT, stride, ctypes.c_void_p(24))
+        glDrawElements(GL_TRIANGLES, self.vertex_count, GL_UNSIGNED_INT, ctypes.c_void_p(0))
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_NORMAL_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0)
+        glBindBuffer(GL_ARRAY_BUFFER, 0)
 
 
 class BoxGeometry:

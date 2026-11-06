@@ -8,6 +8,7 @@ uniform vec3 u_light_diffuse;
 uniform vec3 u_material_color;
 uniform float u_material_alpha;
 uniform vec3 u_emissive_color;
+uniform float u_emissive_strength;
 // u_material_specular e u_material_shininess definem o highlight Phong.
 uniform vec3 u_material_specular;
 uniform float u_material_shininess;
@@ -22,6 +23,10 @@ uniform float u_shadow_bias;
 uniform int u_shadow_enabled;
 // u_receive_shadow e enviado por cada Mesh; castShadow e filtrado no passe 1.
 uniform int u_receive_shadow;
+// Uniforms da neblina linear do fundo marinho; a cor coincide com o clear color do céu.
+uniform vec3 u_fog_color;
+uniform float u_fog_start;
+uniform float u_fog_end;
 varying vec3 v_normal_eye;
 varying vec3 v_position_eye;
 varying vec2 v_uv;
@@ -65,5 +70,7 @@ void main() {
     vec3 ambientTerm = baseColor * u_light_ambient;
     vec3 directTerm = baseColor * diffuse + u_material_specular * specular;
     vec3 color = ambientTerm + u_light_diffuse * directTerm * (1.0 - 0.72 * shadow);
-    gl_FragColor = vec4(color + u_emissive_color, u_material_alpha);
+    float fogAmount = smoothstep(u_fog_start, u_fog_end, length(v_position_eye));
+    color = mix(color, u_fog_color, fogAmount);
+    gl_FragColor = vec4(color + u_emissive_color * u_emissive_strength, u_material_alpha);
 }

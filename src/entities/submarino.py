@@ -7,6 +7,7 @@ from core.object3d import Object3D
 from geometry.primitives import BoxGeometry, CylinderGeometry
 from material.phong import PhongMaterial
 from src import config as C
+from src.environment.mar import water_height
 
 
 class Submarino:
@@ -18,21 +19,40 @@ class Submarino:
     def reset(self):
         self.position = np.array(C.SUB_START, dtype=float)
         self.yaw = 0.0
+        self.pitch = 0.0
+        self.roll = 0.0
         self.scale = 1.0
+        self.glow = 0.0
+        self.waterTime = 0.0
+        self.visible = True
+        self.castsShadow = False
         self.prop_angle = 0.0
         self.prop_speed = C.PROP_SPEED
+        if self.root is not None:
+            self.root.visible = True
+        if self.root is not None:
+            self.root.visible = True
 
     def build(self, lighting):
         """Monta corpo, torre, periscópio, hélice e estabilizadores."""
         if self.root is not None:
             return self.root
 
-        material_casco = PhongMaterial(lighting, (0.08, 0.24, 0.36))
-        material_proa = PhongMaterial(lighting, (0.9, 0.66, 0.22))
-        material_torre = PhongMaterial(lighting, (0.18, 0.48, 0.57))
-        material_periscopio = PhongMaterial(lighting, (0.82, 0.88, 0.78))
-        material_helice = PhongMaterial(lighting, (0.84, 0.32, 0.16))
-        material_aletas = PhongMaterial(lighting, (0.12, 0.39, 0.48))
+        emissive = C.SUB_GLOW_COLOR
+        material_casco = PhongMaterial(lighting, (0.08, 0.24, 0.36), emissive=emissive, emissiveStrength=0.0)
+        material_proa = PhongMaterial(lighting, (0.9, 0.66, 0.22), emissive=emissive, emissiveStrength=0.0)
+        material_torre = PhongMaterial(lighting, (0.18, 0.48, 0.57), emissive=emissive, emissiveStrength=0.0)
+        material_periscopio = PhongMaterial(lighting, (0.82, 0.88, 0.78), emissive=emissive, emissiveStrength=0.0)
+        material_helice = PhongMaterial(lighting, (0.84, 0.32, 0.16), emissive=emissive, emissiveStrength=0.0)
+        material_aletas = PhongMaterial(lighting, (0.12, 0.39, 0.48), emissive=emissive, emissiveStrength=0.0)
+        self._glow_materials = (
+            material_casco,
+            material_proa,
+            material_torre,
+            material_periscopio,
+            material_helice,
+            material_aletas,
+        )
 
         self.root = Object3D()
 
@@ -122,13 +142,25 @@ class Submarino:
         self.apply()
         return self.root
 
-    def apply(self):
+    def apply(self, animationTime=None):
         """Copia o estado de animação para as transformações do modelo."""
+        if animationTime is not None:
+            self.waterTime = animationTime
+        surface = water_height(self.position[0], self.position[2], self.waterTime)
+        self.castsShadow = self.position[1] + C.SUB_TOWER_TOP * self.scale > surface
         if self.root is None:
             return
 
+        self.root.visible = self.visible
+        self.root.setCastShadow(self.castsShadow)
         self.root.setPosition(*(float(coordenada) for coordenada in self.position))
-        self.root.setRotation(0.0, math.degrees(self.yaw), 0.0)
+        self.root.setRotation(
+            math.degrees(self.roll),
+            math.degrees(self.yaw),
+            math.degrees(self.pitch),
+        )
         self.root.setScale(self.scale, self.scale, self.scale)
+        for material in self._glow_materials:
+            material.emissiveStrength = self.glow
         if self.helice is not None:
             self.helice.setRotation(math.degrees(self.prop_angle), 0.0, 0.0)

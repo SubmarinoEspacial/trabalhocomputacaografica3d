@@ -17,9 +17,12 @@ class DiscoVoador:
 
     def reset(self):
         self.position = np.array(C.DISC_START, dtype=float)
+        self.yaw = 0.0
         self.hover_phase = 0.0
         self.ring_angle = 0.0
         self.beam_amount = 0.0    # 0 = desligado, 1 = totalmente ligado
+        if self.root is not None:
+            self.root.visible = True
 
     @property
     def hover_offset(self):
@@ -87,9 +90,9 @@ class DiscoVoador:
         self.corpo.add(cupula, self.anel)
 
         self.feixe = Mesh(
-            ConeGeometry(radius=0.82, height=2.8, segments=32),
+            ConeGeometry(radius=1.25, height=3.0, segments=32),
             material_feixe,
-            position=(0.0, -1.52, 0.0),
+            position=(0.0, -1.56, 0.0),
         )
         self.root.add(self.corpo, self.feixe)
         self.apply()
@@ -105,6 +108,8 @@ class DiscoVoador:
             float(self.position[1] + self.hover_offset),
             float(self.position[2]),
         )
+        self.root.setRotation(0.0, math.degrees(self.yaw), 0.0)
+        self.root.setScale(C.DISC_SCALE, C.DISC_SCALE, C.DISC_SCALE)
         if self.anel is not None:
             self.anel.setRotation(0.0, math.degrees(self.ring_angle), 0.0)
 

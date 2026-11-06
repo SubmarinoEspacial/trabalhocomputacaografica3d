@@ -13,6 +13,7 @@ class PhongMaterial(LambertMaterial):
         shininess=40.0,
         alpha=1.0,
         emissive=(0.0, 0.0, 0.0),
+        emissiveStrength=1.0,
         transparent=False,
         casts_shadow=True,
     ):
@@ -21,6 +22,7 @@ class PhongMaterial(LambertMaterial):
             color,
             alpha=alpha,
             emissive=emissive,
+            emissiveStrength=emissiveStrength,
             specular=specular,
             shininess=shininess,
             transparent=transparent,

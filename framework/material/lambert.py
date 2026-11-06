@@ -48,6 +48,7 @@ class LightingContext:
         "u_material_color",
         "u_material_alpha",
         "u_emissive_color",
+        "u_emissive_strength",
         "u_material_specular",
         "u_material_shininess",
         "repeatUV",
@@ -60,11 +61,17 @@ class LightingContext:
         "u_shadow_bias",
         "u_shadow_enabled",
         "u_receive_shadow",
+        "u_fog_color",
+        "u_fog_start",
+        "u_fog_end",
     )
 
-    def __init__(self, light, ambientLight=None):
+    def __init__(self, light, ambientLight=None, fogColor=(0.52, 0.78, 0.92), fogStart=32.0, fogEnd=110.0):
         self.light = light
         self.ambientLight = ambientLight
+        self.fogColor = tuple(fogColor)
+        self.fogStart = float(fogStart)
+        self.fogEnd = float(fogEnd)
         self.yaw_camera = 0.0
         self.pitch_camera = 0.0
         self.shadow_texture = 0
@@ -203,6 +210,9 @@ class LightingContext:
             int(self.shadow_texture != 0 and self.receiveShadow),
         )
         glUniform1i(self.uniforms["u_receive_shadow"], int(self.receiveShadow))
+        glUniform3f(self.uniforms["u_fog_color"], *self.fogColor)
+        glUniform1f(self.uniforms["u_fog_start"], self.fogStart)
+        glUniform1f(self.uniforms["u_fog_end"], self.fogEnd)
         glUniform1i(self.uniforms["u_shadow_map"], 1)
         glUniform2f(
             self.uniforms["u_shadow_texel_size"],
@@ -224,6 +234,7 @@ class LambertMaterial:
         texture_id=None,
         alpha=1.0,
         emissive=(0.0, 0.0, 0.0),
+        emissiveStrength=1.0,
         repeatUV=(1.0, 1.0),
         offsetUV=(0.0, 0.0),
         specular=(0.0, 0.0, 0.0),
@@ -236,6 +247,7 @@ class LambertMaterial:
         self.texture_id = texture_id
         self.alpha = alpha
         self.emissive = tuple(emissive)
+        self.emissiveStrength = float(emissiveStrength)
         self.repeatUV = tuple(repeatUV)
         self.offsetUV = tuple(offsetUV)
         self.specular = tuple(specular)
@@ -251,6 +263,10 @@ class LambertMaterial:
         glUniform3f(self.lighting.uniforms["u_material_color"], *self.color)
         glUniform1f(self.lighting.uniforms["u_material_alpha"], self.alpha)
         glUniform3f(self.lighting.uniforms["u_emissive_color"], *self.emissive)
+        glUniform1f(
+            self.lighting.uniforms["u_emissive_strength"],
+            self.emissiveStrength,
+        )
         glUniform2f(self.lighting.uniforms["repeatUV"], *self.repeatUV)
         glUniform2f(self.lighting.uniforms["offsetUV"], *self.offsetUV)
         glUniform3f(self.lighting.uniforms["u_material_specular"], *self.specular)

@@ -6,9 +6,11 @@
 (Submarino Estilizado e Disco Voador)
 
 ## Descrição da cena e da interação
-Tanque de testes fictício. O disco voador detecta o submarino, se posiciona,
-o inspeciona em órbita, liga um feixe e o abduz. Ao final, a cena reinicia.
-Sequência: Patrulha, Detecção, Posicionamento, Inspeção, Feixe, Abdução, Final.
+Mar aberto com fundo de areia, neblina no horizonte, ondas procedurais e sombras
+projetadas na água. O submarino navega submerso, emerge com brilho emissivo, é
+detectado pelo disco voador, inspecionado em órbita, iluminado por um feixe e
+abduzido. Ao final, a cena reinicia.
+Sequência: Submerso, Emergindo, Detecção, Posicionamento, Inspeção, Feixe, Abdução, Final.
 
 ## Instalação e execução
 ```
@@ -29,10 +31,12 @@ W/A/S/D mover, Q/E subir/descer, setas girar, ESPAÇO pausar/retomar, R reinicia
 | R2 Animação e interação (delta time) | `src/interaction/abducao.py` |
 | R3 Translação, rotação, escala, hierarquia | `src/entities/*` |
 | R4 Câmera e pausa | `src/controls/camera_rig.py`, `main.py` |
-| R5 Textura | `src/environment/tanque.py` (`build_tanque`), `framework/material/texture.py` |
-| R6 Iluminação Lambert e normais | `main.py` (`setup_luz`), `framework/light/directional.py`, `framework/material/lambert.py`, `framework/geometry/primitives.py` |
-| R7 Sombras projetadas | `framework/light/shadow_map.py`, shaders em `shaders/depth.vert` e `shaders/depth.frag` |
-| Shader / uniforms | `framework/material/lambert.py` (`u_light_direction_eye`, `u_light_ambient`, `u_light_diffuse`, `u_material_color`, `u_use_texture`, `u_texture`) |
+| R5 Textura de areia | `src/environment/mar.py` (`build_mar`), `framework/core/texture.py`, `framework/material/texture.py` |
+| R6 Ondas, shading e sombra da água | `src/environment/mar.py` (`water_height`, `water_slope`), `shaders/water.vert`, `shaders/water.frag` |
+| R7 Iluminação | `framework/light/ambient.py`, `framework/light/directional.py`, `framework/material/phong.py`, `framework/material/lambert.py` |
+| R8 Sombras projetadas | `framework/light/shadow_map.py`, `shaders/depth.vert`, `shaders/depth.frag`, `shaders/water.frag` |
+| R9 Glow emissivo | `src/entities/submarino.py` (`glow`), `shaders/material.frag` (`u_emissive_strength`) |
+| Shader / uniforms | `shaders/material.vert`, `shaders/material.frag`, `shaders/water.vert`, `shaders/water.frag` |
 
 ## Contribuições individuais
 - ___:
@@ -40,7 +44,7 @@ W/A/S/D mover, Q/E subir/descer, setas girar, ESPAÇO pausar/retomar, R reinicia
 
 ## Fontes consultadas
 - STEMKOSKI, Lee; PASCALE, Michael. Developing graphics frameworks with Python and OpenGL. CRC Press, 2022.
-- Textura de teste `assets/textures/concreto_teste.png`: padrão sintético criado neste projeto com NumPy/Pygame, sem fonte externa. Substituir por uma foto de azulejo/concreto real na versão final.
+- Areia `assets/textures/areia_procedural.png`: padrão procedural 256 × 256 gerado neste projeto com NumPy/Pygame, sem fonte externa. Substituir por fotografia licenciada de areia antes da entrega final.
 
 ## Declaração de uso de IA
 Ferramenta: ___ | Finalidade: ___ | Trechos: ___

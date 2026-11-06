@@ -11,6 +11,7 @@ class ColorMaterial(LambertMaterial):
         color,
         alpha=1.0,
         emissive=(0.0, 0.0, 0.0),
+        emissiveStrength=1.0,
         transparent=False,
         casts_shadow=True,
     ):
@@ -19,6 +20,7 @@ class ColorMaterial(LambertMaterial):
             color,
             alpha=alpha,
             emissive=emissive,
+            emissiveStrength=emissiveStrength,
             transparent=transparent,
             casts_shadow=casts_shadow,
         )

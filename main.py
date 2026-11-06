@@ -17,9 +17,10 @@ from OpenGL.GLU import gluPerspective
 from core.base import Base
 from core_ext.scene import Scene
 from src.controls.camera_rig import MovementRig
+from src import config as C
 from src.entities.disco_voador import DiscoVoador
 from src.entities.submarino import Submarino
-from src.environment.tanque import build_tanque
+from src.environment.mar import build_mar
 from src.interaction.abducao import AbducaoController
 from light.directional import DirectionalLight
 from light.ambient import AmbientLight
@@ -40,7 +41,13 @@ def setup_luz():
         strength=1.0,
     )
     luzDirecional.setDirection((-0.4, -1.0, -0.3))
-    return LightingContext(luzDirecional, luzAmbiente)
+    return LightingContext(
+        luzDirecional,
+        luzAmbiente,
+        fogColor=C.FOG_COLOR,
+        fogStart=C.FOG_START,
+        fogEnd=C.FOG_END,
+    )
 
 
 class Aplicacao(Base):
@@ -52,14 +59,14 @@ class Aplicacao(Base):
         glLoadIdentity()
         gluPerspective(55.0, self.largura / self.altura, 0.1, 200.0)
         glMatrixMode(GL_MODELVIEW)
-        glClearColor(0.035, 0.07, 0.09, 1.0)
+        glClearColor(*C.SKY_COLOR)
 
         self.lighting = setup_luz()
         self.shadow_map = self.lighting.light.enableShadows(self.lighting)
-        self.camera_rig = MovementRig(posicao=(0.0, 8.0, 18.0))
-        self.camera_rig.pitch = -20.0
+        self.camera_rig = MovementRig(posicao=(0.0, 13.0, 34.0))
+        self.camera_rig.pitch = -17.0
         self.scene = Scene()
-        build_tanque(self.scene, self.lighting)
+        self.water_material = build_mar(self.scene, self.lighting)
 
         self.submarino = Submarino()
         self.submarino.build(self.lighting)
@@ -79,6 +86,7 @@ class Aplicacao(Base):
         self.controlador = AbducaoController(self.submarino, self.disco)
 
         self.pausado = False
+        self.tempoAnimacao = 0.0
         self._espaco_anterior = False
         self._r_anterior = False
 
@@ -101,10 +109,12 @@ class Aplicacao(Base):
         self.camera_rig.update(delta_quadro, teclas)
         self.lighting.setCameraRotation(self.camera_rig.yaw, self.camera_rig.pitch)
         delta_logica = 0.0 if self.pausado else delta_quadro
+        self.tempoAnimacao += delta_logica
+        self.water_material.setTime(self.tempoAnimacao)
 
         if self.submarino.root is not None:
-            self.controlador.update(delta_logica)
-            self.submarino.apply()
+            self.controlador.update(delta_logica, self.tempoAnimacao)
+            self.submarino.apply(self.tempoAnimacao)
         if self.disco.root is not None:
             self.disco.apply()
 

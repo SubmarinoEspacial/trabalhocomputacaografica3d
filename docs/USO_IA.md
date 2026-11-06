@@ -24,17 +24,24 @@
 - **Fonte da adaptação:** Stemkoski e Pascale (2022), capítulo 4, seção "Scene Graph Framework", classe `MovementRig`.
 - **Verificação:** teste OpenGL de cinco quadros confirmou câmera ativa durante a pausa, cubo parado e reset por R; `tests.test_abducao` passou em 30 e 120 FPS; diagnósticos Pylance sem erros.
 
-## Tanque e textura
-- **Feito:** criado o tanque com piso UV repetível e quatro paredes de caixa; conectada a renderização da cena à aplicação; removido o bloco de demo de cubo duplicado em `main.py`.
-- **Arquivos/funções criados ou revisados:** criado `src/environment/tanque.py` (`build_tanque`), `framework/core/object3d.py`, `framework/core/mesh.py`, `framework/core_ext/scene.py`, `framework/geometry/primitives.py`, `framework/material/basic.py` e `framework/material/texture.py`; revisado `main.py`; atualizado `README.md` e este registro.
-- **Origem do asset:** `assets/textures/concreto_teste.png` é uma textura sintética de 256 × 256 px, gerada com NumPy/Pygame, sem fonte externa; trocar por foto real antes da entrega final.
-- **Fonte conceitual:** estrutura de cena conforme capítulo 4 e mapeamento de textura conforme capítulo 5 de Stemkoski e Pascale (2022); implementações locais originais, sem cópia de código do livro.
-- **Verificação:** renderização real gerou cinco malhas e 445 cores distintas na região capturada do piso, com `glGetError()` sem erros.
+## Mar aberto, ondas e emergência
+- **Feito:** substituída a cena anterior por fundo de areia, grade de água, céu azul e neblina; ondas senoidais rodam na GPU e `water_height`/`water_slope` CPU compartilham os parâmetros de `config.py`.
+- **Estados:** SUBMERSO → EMERGINDO → DETECCAO → POSICIONAMENTO → INSPECAO → FEIXE → ABDUCAO → FINAL → reinício. O submarino acompanha a superfície após emergir, inclina pela derivada da onda e só projeta sombra quando a torre rompe a água.
+- **Brilho/abdução:** glow sobe no FEIXE, pulsa durante ABDUCAO e apaga em FINAL; emissiveStrength soma emissão depois do termo de sombra. O root do disco escala por `DISC_SCALE`; o submarino é ocultado ao final e restaurado no reset.
+- **Arquivos/funções criados ou revisados:** removida a implementação do ambiente anterior; criado `src/environment/mar.py` (`build_mar`, `water_height`, `water_slope`); revisados `src/config.py`, `src/interaction/abducao.py`, `src/entities/submarino.py`, `src/entities/disco_voador.py`, `framework/geometry/primitives.py`, `framework/material/lambert.py`, `main.py`, `tests/test_abducao.py`, `README.md` e este registro.
+- **Origem do asset:** `assets/textures/areia_procedural.png` (256 × 256) gerada com NumPy/Pygame, sem fonte externa; substituir por fotografia licenciada de areia antes da entrega.
+- **Verificação:** teste do ciclo passou em 30/120 FPS; derivadas CPU conferidas por diferenças finitas; cena OpenGL percorreu o ciclo completo.
+
+## Sombra na água e glow
+- **Feito:** a água recebe sombras com coordenadas da posição deslocada do vértice; ela não projeta sombra. O submarino só projeta quando o topo da torre rompe a superfície. A abdução escala até `ABDUCT_MIN_SCALE`, oculta o submarino, pulsa `glow` e restaura tudo no reset.
+- **Arquivos/funções revisados:** `src/interaction/abducao.py`, `src/entities/submarino.py`, `src/entities/disco_voador.py`, `src/config.py`, `framework/material/water.py`, `framework/material/phong.py`, `framework/light/shadow_map.py`, `shaders/water.vert`, `shaders/water.frag`, `shaders/material.frag`, `tests/test_abducao.py`.
+- **Verificação:** sombra no fundo variou de 2.650 pixels na patrulha a 572 na subida; depth map vazio com submarino submerso e preenchido após emergir. Ciclo aprovado a 30/120 FPS.
+- **Limitações:** alpha/Fresnel são aproximados, ondas são uma soma de três senóides e a água é uma grade fixa 200×200; bias elevado reduz acne mas suaviza detalhes pequenos. Não há simulação física ou colisões.
 
 ## Modelo do submarino
 - **Feito:** implementados `Submarino.build()` e `Submarino.apply()` com casco cilíndrico ao longo de X, proa, torre, periscópio, hélice de três pás, aletas e leme em hierarquia `Object3D`; o root entra na cena e atualiza em cada quadro.
 - **Arquivos/funções criados ou revisados:** revisado `src/entities/submarino.py`; adicionada `CylinderGeometry` em `framework/geometry/primitives.py`; revisado `main.py` para construir/adicionar o root e atualizar a lógica enquanto o submarino estiver construído.
-- **Verificação:** em oito quadros OpenGL, a posição de patrulha avançou de `x=-7,976` para `x=-7,713` e o pivô da hélice girou `65,7°`; a captura mostrou o submarino no tanque. `tests.test_abducao` passou em 30 e 120 FPS.
+- **Verificação:** em oito quadros OpenGL, a posição de patrulha avançou de `x=-7,976` para `x=-7,713` e o pivô da hélice girou `65,7°`; a captura mostrou o submarino no ambiente anterior. `tests.test_abducao` passou em 30 e 120 FPS.
 
 ## Modelo do disco voador
 - **Feito:** implementados `DiscoVoador.build()` e `apply()` com corpo esférico achatado, cúpula, pivô com oito luzes, cone de feixe oculto quando desligado e escala ligada ao nível do feixe; root adicionado à cena.
@@ -49,14 +56,14 @@
 
 ## Iluminação direcional
 - **Feito:** criada uma única `DirectionalLight` em `main.py` (`setup_luz`) e um `LightingContext`/shader Lambert compartilhado por piso, paredes, submarino e disco.
-- **Arquivos/funções criados ou revisados:** criados `framework/light/directional.py` e `framework/material/lambert.py`; revisados `framework/material/basic.py`, `framework/material/texture.py`, `framework/geometry/primitives.py`, `src/environment/tanque.py`, `src/entities/submarino.py`, `src/entities/disco_voador.py`, `main.py`, `README.md` e `framework/README.md`.
+- **Arquivos/funções criados ou revisados:** criados `framework/light/directional.py` e `framework/material/lambert.py`; revisados `framework/material/basic.py`, `framework/material/texture.py`, `framework/geometry/primitives.py`, o ambiente anterior, `src/entities/submarino.py`, `src/entities/disco_voador.py`, `main.py`, `README.md` e `framework/README.md`.
 - **Explicação no código:** uniforms `u_light_direction_eye`, `u_light_ambient`, `u_light_diffuse`, `u_material_color`, `u_use_texture` e `u_texture`; transformação das normais pelo `gl_NormalMatrix`; difuso Lambert pelo produto normal-luz. O comentário diferencia sombreamento local de sombra projetada, que exige shadow map/depth pass.
 - **Fonte conceitual:** Stemkoski e Pascale (2022), capítulo 6, "Lights"; implementação GLSL original do projeto.
 - **Verificação:** shader compilado no OpenGL 4.6 Compatibility Profile; cena completa renderizou 7 malhas sem erro GL; uma caixa cinza produziu intensidades distintas em faces com normais diferentes (`83` e `201`); `tests.test_abducao` passou.
 
 ## Iluminação Lambert
-- **Feito:** definida uma luz direcional em `main.py` (`setup_luz`) e compartilhado um único shader Lambert por materiais de cor e textura para tanque, submarino e disco.
-- **Arquivos/funções criados ou revisados:** criados `framework/light/directional.py` e `framework/material/lambert.py`; revisados `framework/material/basic.py`, `framework/material/texture.py`, `framework/geometry/primitives.py`, `src/environment/tanque.py`, `src/entities/submarino.py`, `src/entities/disco_voador.py`, `main.py`, `README.md` e `framework/README.md`.
+- **Feito:** definida uma luz direcional em `main.py` (`setup_luz`) e compartilhado um único shader Lambert por materiais de cor e textura para o ambiente e os personagens.
+- **Arquivos/funções criados ou revisados:** criados `framework/light/directional.py` e `framework/material/lambert.py`; revisados `framework/material/basic.py`, `framework/material/texture.py`, `framework/geometry/primitives.py`, o ambiente, `src/entities/submarino.py`, `src/entities/disco_voador.py`, `main.py`, `README.md` e `framework/README.md`.
 - **Conceitos documentados no código:** uniforms da luz e do material, transformação das normais para o espaço visual, difuso Lambert por produto escalar; sombreamento local não equivale a sombra projetada, que exige shadow map/depth pass.
 - **Verificação:** shader compilado no OpenGL 4.6 Compatibility Profile; cena completa renderizou sem erro GL; uma caixa de cor uniforme produziu intensidades distintas em faces com normais diferentes (`(83,83,81)` e `(201,195,181)`).
 
@@ -79,7 +86,7 @@
 
 ## Textura UV por uniforms
 - **Feito:** o piso usa `Texture` independente e `TextureMaterial`; a geometria fornece UV unitário e o vertex shader calcula `vertexUV * repeatUV + offsetUV`.
-- **Arquivos/funções alterados:** criado `framework/core/texture.py`; revisados `framework/material/texture.py`, `framework/material/lambert.py`, `framework/geometry/primitives.py`, `src/environment/tanque.py`; criados `shaders/material.vert` e `shaders/material.frag`.
+- **Arquivos/funções alterados:** criado `framework/core/texture.py`; revisados `framework/material/texture.py`, `framework/material/lambert.py`, `framework/geometry/primitives.py`, o ambiente; criados `shaders/material.vert` e `shaders/material.frag`.
 - **Verificação:** uniforms lidos com `repeatUV=(5,3.75)` e `offsetUV=(0,0)`; parâmetros de textura `GL_REPEAT` e min/mag `GL_LINEAR`; cena renderizada sem erro GL.
 
 ## Materiais Phong e luz ambiente
@@ -90,6 +97,6 @@
 
 ## Shadow mapping compatível com seção 6.9
 - **Feito:** `DirectionalLight.enableShadows()` liga `ShadowCamera`, `DepthMaterial` e depth target; `ShadowMap` mantém os dois passes e `Mesh.setCastShadow()`/`setReceiveShadow()` controlam inclusão e recepção.
-- **Arquivos/funções alterados:** criados `framework/material/depth.py`, `framework/light/ambient.py`, `framework/light/light.py`, `framework/material/phong.py` e `framework/core/texture.py`; revisados `framework/light/directional.py`, `framework/light/shadow_map.py`, `framework/core/base.py`, `framework/core/object3d.py`, `framework/core/mesh.py`, `framework/core_ext/scene.py`, materiais, geometrias, `main.py`, tanque e shaders; `README.md` não foi alterado.
+- **Arquivos/funções alterados:** criados `framework/material/depth.py`, `framework/light/ambient.py`, `framework/light/light.py`, `framework/material/phong.py` e `framework/core/texture.py`; revisados `framework/light/directional.py`, `framework/light/shadow_map.py`, `framework/core/base.py`, `framework/core/object3d.py`, `framework/core/mesh.py`, `framework/core_ext/scene.py`, materiais, geometrias, `main.py`, ambiente e shaders.
 - **Comparação com o livro:** esta é uma adaptação local das responsabilidades `ShadowMaterial`/`ShadowCamera`/`RenderTarget` do capítulo 6.9, não classes copiadas. `Renderer` genérico continua ausente; a orquestração dos passes permanece em `ShadowMap`/`main.py`.
 - **Verificação:** cena renderizou após cada item; sombra no chão foi de 2.650 pixels na patrulha a 572 na subida, com centro deslocado; teste da máquina de estados passou e `src/interaction/abducao.py` não foi alterado.

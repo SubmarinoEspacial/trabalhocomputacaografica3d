@@ -1,29 +1,62 @@
 """Parâmetros da cena e da abdução. Ajuste aqui, sem mexer na lógica."""
 import math
 
+# Mar aberto
+WATER_LEVEL = 1.5
+WATER_WIDTH = 160.0
+WATER_DEPTH = 130.0
+WATER_GRID_RESOLUTION = 200
+SEA_FLOOR_DEPTH = 18.0
+SKY_COLOR = (0.52, 0.78, 0.92, 1.0)
+FOG_COLOR = SKY_COLOR[:3]
+FOG_START = 32.0
+FOG_END = 110.0
+WATER_COLOR = (0.035, 0.3, 0.46)
+WATER_ALPHA = 0.46
+WATER_WAVES = (
+	(1.0, 0.0, 0.18, 0.32, 0.85),
+	(0.6, 0.8, 0.11, 0.55, 1.2),
+	(-0.8, 0.6, 0.07, 0.9, 1.55),
+)
+
 # Submarino
-SUB_START = (-8.0, 1.0, 0.0)
-SUB_SPEED = 1.5
-SUB_SPEED_FLEE = 3.0
+SUB_DEPTH = 3.0
+SUB_SURFACE_OFFSET = -0.65
+SUB_TOWER_TOP = 1.85
+SUB_START = (-11.0, WATER_LEVEL - SUB_DEPTH, 0.0)
+SUB_SPEED = 1.3
+SUB_SPEED_FLEE = 2.2
 PROP_SPEED = 6.0            # rad/s
+SUBMERGED_TIME = 2.5
+EMERGE_TIME = 3.2
+EMERGE_PITCH = 12.0         # graus, nariz inclinado ao romper a água
+SURFACE_ROLL_FACTOR = 0.65
+DETECTION_APPROACH_RADIUS = 10.0
+SUB_GLOW_COLOR = (0.12, 0.72, 1.0)
+GLOW_RISE_TIME = 1.5
+GLOW_PULSE_AMPLITUDE = 0.16
+GLOW_PULSE_FREQUENCY = 3.0
+GLOW_FADE_SPEED = 1.0
 
 # Disco voador
-DISC_START = (2.0, 5.0, -3.0)
-DISC_SPEED = 3.0
+DISC_SCALE = 2.7
+DISC_START = (7.0, 8.0, -6.0)
+DISC_SPEED = 5.5
 DISC_HOVER_AMP = 0.15
 DISC_HOVER_FREQ = 2.0
-DISC_HEIGHT_OVER_SUB = 3.0
+DISC_HEIGHT_OVER_SUB = 7.5
+DISC_HOVER_RADIUS = 0.2
 RING_SPEED = 2.0            # rad/s
 
 # Interação
-DETECT_RADIUS = 5.0
-ARRIVE_EPS = 0.3
-ORBIT_RADIUS = 2.5
+DETECT_RADIUS = 20.0
+DETECT_APPROACH_RADIUS = 10.0
+ARRIVE_EPS = 0.45
+ORBIT_RADIUS = 4.2
 ORBIT_OMEGA = math.pi / 2   # rad/s (uma volta em 4 s)
-FLEE_TIME = 1.5
-BEAM_TIME = 1.0
-ABDUCT_TIME = 4.0
-ABDUCT_RISE = 2.5
-ABDUCT_SPIN = math.pi / 4   # rad/s: meia volta ao longo dos 4 s de subida
-ABDUCT_MIN_SCALE = 0.4
-FINAL_WAIT = 1.5
+BEAM_TIME = 1.5
+ABDUCT_TIME = 6.0
+ABDUCT_RISE = 6.4
+ABDUCT_SPIN = math.pi / 6   # rad/s: meia volta ao longo dos 6 s de subida
+ABDUCT_MIN_SCALE = 0.05
+FINAL_WAIT = 1.2
