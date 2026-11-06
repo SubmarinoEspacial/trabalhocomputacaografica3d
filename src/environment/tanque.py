@@ -13,7 +13,7 @@ PAREDE_ALTURA = 2.5
 PAREDE_ESPESSURA = 0.8
 
 
-def build_tanque(scene):
+def build_tanque(scene, lighting):
     """Adiciona à cena um piso repetível e quatro paredes feitas de caixas."""
     caminho_textura = (
         Path(__file__).resolve().parents[2]
@@ -26,10 +26,10 @@ def build_tanque(scene):
     # resultando em 20 por 15 ladrilhos quadrados de 2 m sobre o piso.
     piso = Mesh(
         PlaneGeometry(TANQUE_LARGURA, TANQUE_PROFUNDIDADE, uv_repeat=(5.0, 3.75)),
-        TextureMaterial(caminho_textura),
+        TextureMaterial(lighting, caminho_textura),
         position=(0.0, 0.005, 0.0),
     )
-    material_parede = ColorMaterial((0.27, 0.34, 0.35))
+    material_parede = ColorMaterial(lighting, (0.27, 0.34, 0.35))
 
     parede_esquerda = Mesh(
         BoxGeometry(PAREDE_ESPESSURA, PAREDE_ALTURA, TANQUE_PROFUNDIDADE),

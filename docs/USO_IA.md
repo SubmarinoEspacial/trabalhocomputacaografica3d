@@ -46,3 +46,16 @@
 - **Valor alterado em `src/config.py`:** `ABDUCT_SPIN` de `2.0` para `math.pi / 4` rad/s. Com subida de 4 s, isso reduz a rotação de 8 rad (1,27 voltas, rápida) para aproximadamente 3,17 rad (meia-volta, gradual e legível).
 - **Valores mantidos:** `FLEE_TIME`, `DISC_SPEED`, `ORBIT_RADIUS`, `ORBIT_OMEGA`, `BEAM_TIME`, `ABDUCT_TIME`, `ABDUCT_RISE` e `ABDUCT_MIN_SCALE` mantiveram posicionamento, órbita, feixe e subida coerentes nas capturas.
 - **Verificação:** ordem completa dos estados confirmada; durante FEIXE o submarino permanece em `y=1` com feixe em `0,55`; a meio da abdução está em `y=2,25`, escala `0,7` e yaw `pi/2`; o reinício restaura a cena. Nenhuma lógica foi alterada.
+
+## Iluminação direcional
+- **Feito:** criada uma única `DirectionalLight` em `main.py` (`setup_luz`) e um `LightingContext`/shader Lambert compartilhado por piso, paredes, submarino e disco.
+- **Arquivos/funções criados ou revisados:** criados `framework/light/directional.py` e `framework/material/lambert.py`; revisados `framework/material/basic.py`, `framework/material/texture.py`, `framework/geometry/primitives.py`, `src/environment/tanque.py`, `src/entities/submarino.py`, `src/entities/disco_voador.py`, `main.py`, `README.md` e `framework/README.md`.
+- **Explicação no código:** uniforms `u_light_direction_eye`, `u_light_ambient`, `u_light_diffuse`, `u_material_color`, `u_use_texture` e `u_texture`; transformação das normais pelo `gl_NormalMatrix`; difuso Lambert pelo produto normal-luz. O comentário diferencia sombreamento local de sombra projetada, que exige shadow map/depth pass.
+- **Fonte conceitual:** Stemkoski e Pascale (2022), capítulo 6, "Lights"; implementação GLSL original do projeto.
+- **Verificação:** shader compilado no OpenGL 4.6 Compatibility Profile; cena completa renderizou 7 malhas sem erro GL; uma caixa cinza produziu intensidades distintas em faces com normais diferentes (`83` e `201`); `tests.test_abducao` passou.
+
+## Iluminação Lambert
+- **Feito:** definida uma luz direcional em `main.py` (`setup_luz`) e compartilhado um único shader Lambert por materiais de cor e textura para tanque, submarino e disco.
+- **Arquivos/funções criados ou revisados:** criados `framework/light/directional.py` e `framework/material/lambert.py`; revisados `framework/material/basic.py`, `framework/material/texture.py`, `framework/geometry/primitives.py`, `src/environment/tanque.py`, `src/entities/submarino.py`, `src/entities/disco_voador.py`, `main.py`, `README.md` e `framework/README.md`.
+- **Conceitos documentados no código:** uniforms da luz e do material, transformação das normais para o espaço visual, difuso Lambert por produto escalar; sombreamento local não equivale a sombra projetada, que exige shadow map/depth pass.
+- **Verificação:** shader compilado no OpenGL 4.6 Compatibility Profile; cena completa renderizou sem erro GL; uma caixa de cor uniforme produziu intensidades distintas em faces com normais diferentes (`(83,83,81)` e `(201,195,181)`).

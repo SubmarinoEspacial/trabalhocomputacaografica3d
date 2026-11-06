@@ -25,21 +25,21 @@ class DiscoVoador:
     def hover_offset(self):
         return C.DISC_HOVER_AMP * math.sin(self.hover_phase)
 
-    def build(self):
+    def build(self, lighting):
         """Monta corpo achatado, cúpula, anel luminoso e feixe retrátil."""
         if self.root is not None:
             return self.root
 
-        material_corpo = ColorMaterial((0.42, 0.54, 0.62))
-        material_cupula = ColorMaterial((0.18, 0.72, 0.82))
-        material_anel = ColorMaterial((0.92, 0.62, 0.16))
+        material_corpo = ColorMaterial(lighting, (0.42, 0.54, 0.62))
+        material_cupula = ColorMaterial(lighting, (0.18, 0.72, 0.82))
+        material_anel = ColorMaterial(lighting, (0.92, 0.62, 0.16))
         material_luzes = (
-            ColorMaterial((0.96, 0.22, 0.16)),
-            ColorMaterial((0.18, 0.9, 0.58)),
-            ColorMaterial((0.2, 0.62, 0.98)),
-            ColorMaterial((0.98, 0.86, 0.32)),
+            ColorMaterial(lighting, (0.96, 0.22, 0.16)),
+            ColorMaterial(lighting, (0.18, 0.9, 0.58)),
+            ColorMaterial(lighting, (0.2, 0.62, 0.98)),
+            ColorMaterial(lighting, (0.98, 0.86, 0.32)),
         )
-        material_feixe = ColorMaterial((0.35, 0.82, 0.96))
+        material_feixe = ColorMaterial(lighting, (0.35, 0.82, 0.96))
 
         self.root = Object3D()
         self.corpo = Object3D()

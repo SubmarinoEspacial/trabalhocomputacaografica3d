@@ -1,4 +1,4 @@
-"""Material OpenGL de textura, com repetição para coordenadas UV maiores que 1.
+"""Material de textura repetível combinado com iluminação Lambert.
 
 Implementação própria apoiada no conceito de texture mapping do capítulo 5,
 "Textures", de Stemkoski e Pascale (2022); nenhum código do livro foi copiado.
@@ -13,23 +13,22 @@ from OpenGL.GL import (
     GL_TEXTURE_WRAP_S,
     GL_TEXTURE_WRAP_T,
     GL_REPEAT,
+    GL_TEXTURE_2D,
     GL_UNPACK_ALIGNMENT,
     GL_UNSIGNED_BYTE,
     glBindTexture,
-    glColor3f,
-    glDisable,
-    glEnable,
     glGenTextures,
     glPixelStorei,
     glTexImage2D,
     glTexParameteri,
 )
+from framework.material.lambert import LambertMaterial
 
 
-class TextureMaterial:
-    """Carrega uma imagem e habilita seu uso como textura repetível."""
+class TextureMaterial(LambertMaterial):
+    """Carrega textura e usa o mesmo shader iluminado dos materiais sólidos."""
 
-    def __init__(self, image_path):
+    def __init__(self, lighting, image_path):
         surface = pygame.image.load(str(image_path))
         self.width, self.height = surface.get_size()
         pixels = pygame.image.tostring(surface, "RGB", True)
@@ -53,14 +52,4 @@ class TextureMaterial:
             pixels,
         )
         glBindTexture(GL_TEXTURE_2D, 0)
-
-    def apply(self):
-        """Ativa a textura e evita que a cor anterior tinja o piso."""
-        glEnable(GL_TEXTURE_2D)
-        glBindTexture(GL_TEXTURE_2D, self.texture_id)
-        glColor3f(1.0, 1.0, 1.0)
-
-    def unapply(self):
-        """Desativa o estado de textura para os próximos materiais."""
-        glBindTexture(GL_TEXTURE_2D, 0)
-        glDisable(GL_TEXTURE_2D)
+        super().__init__(lighting, (1.0, 1.0, 1.0), texture_id=self.texture_id)

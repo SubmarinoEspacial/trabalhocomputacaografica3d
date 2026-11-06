@@ -81,15 +81,22 @@ class CylinderGeometry:
         self.segments = max(3, segments)
 
     def draw(self):
-        """Desenha a lateral e fecha as duas bases com normais simples."""
+        """Desenha lateral e bases; a normal inclui a inclinação do tronco."""
         half_height = self.height / 2.0
+        # O raio varia com Y nos cones, então a normal lateral também tem componente Y.
+        componente_y = (self.radius_bottom - self.radius_top) / self.height
+        comprimento_normal = math.sqrt(1.0 + componente_y * componente_y)
 
         glBegin(GL_QUADS)
         for index in range(self.segments):
             angle_a = 2.0 * math.pi * index / self.segments
             angle_b = 2.0 * math.pi * (index + 1) / self.segments
             middle = (angle_a + angle_b) / 2.0
-            glNormal3f(math.cos(middle), 0.0, math.sin(middle))
+            glNormal3f(
+                math.cos(middle) / comprimento_normal,
+                componente_y / comprimento_normal,
+                math.sin(middle) / comprimento_normal,
+            )
             for angle, y, radius in (
                 (angle_a, -half_height, self.radius_bottom),
                 (angle_b, -half_height, self.radius_bottom),

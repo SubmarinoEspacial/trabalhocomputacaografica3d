@@ -22,17 +22,17 @@ class Submarino:
         self.prop_angle = 0.0
         self.prop_speed = C.PROP_SPEED
 
-    def build(self):
+    def build(self, lighting):
         """Monta corpo, torre, periscópio, hélice e estabilizadores."""
         if self.root is not None:
             return self.root
 
-        material_casco = ColorMaterial((0.08, 0.24, 0.36))
-        material_proa = ColorMaterial((0.9, 0.66, 0.22))
-        material_torre = ColorMaterial((0.18, 0.48, 0.57))
-        material_periscopio = ColorMaterial((0.82, 0.88, 0.78))
-        material_helice = ColorMaterial((0.84, 0.32, 0.16))
-        material_aletas = ColorMaterial((0.12, 0.39, 0.48))
+        material_casco = ColorMaterial(lighting, (0.08, 0.24, 0.36))
+        material_proa = ColorMaterial(lighting, (0.9, 0.66, 0.22))
+        material_torre = ColorMaterial(lighting, (0.18, 0.48, 0.57))
+        material_periscopio = ColorMaterial(lighting, (0.82, 0.88, 0.78))
+        material_helice = ColorMaterial(lighting, (0.84, 0.32, 0.16))
+        material_aletas = ColorMaterial(lighting, (0.12, 0.39, 0.48))
 
         self.root = Object3D()
 
