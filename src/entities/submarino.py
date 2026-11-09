@@ -173,34 +173,35 @@ class Submarino:
         corpo = Object3D()
         corpo.add(
             Mesh(
-                CylinderGeometry(0.66, 0.66, 4.4, segments=32),
+                CylinderGeometry(0.66, 0.66, 4.4, segments=C.ROUND_SEGMENTS),
                 m["casco"],
                 position=(0.15, 0.0, 0.0),
                 rotation=(0.0, 0.0, 90.0),
             ),
             Mesh(
-                CylinderGeometry(0.0, 0.66, 1.35, segments=32),
+                CylinderGeometry(0.0, 0.66, 1.35, segments=C.ROUND_SEGMENTS),
                 m["casco"],
                 position=(3.02, 0.0, 0.0),
                 rotation=(0.0, 0.0, -90.0),
             ),
             Mesh(
-                CylinderGeometry(0.38, 0.66, 1.0, segments=28),
+                CylinderGeometry(0.38, 0.66, 1.0, segments=C.ROUND_SEGMENTS),
                 m["casco"],
                 position=(-2.55, 0.0, 0.0),
                 rotation=(0.0, 0.0, 90.0),
             ),
         )
         # Faixas discretas marcam as emendas do casco.
-        for x in (-1.55, -0.35, 0.85, 1.95):
-            corpo.add(
-                Mesh(
-                    CylinderGeometry(0.673, 0.673, 0.055, segments=32),
-                    m["latao"],
-                    position=(x, 0.0, 0.0),
-                    rotation=(0.0, 0.0, 90.0),
+        if C.DETALHES_COMPLETOS:
+            for x in (-1.55, -0.35, 0.85, 1.95):
+                corpo.add(
+                    Mesh(
+                        CylinderGeometry(0.673, 0.673, 0.055, segments=C.ROUND_SEGMENTS),
+                        m["latao"],
+                        position=(x, 0.0, 0.0),
+                        rotation=(0.0, 0.0, 90.0),
+                    )
                 )
-            )
         corpo.add(
             Mesh(
                 BoxGeometry(4.6, 0.16, 0.28),
@@ -233,30 +234,31 @@ class Submarino:
             )
 
         # Corrimãos finos: geometria do framework, sem participar do depth pass.
-        for lado in (-1.0, 1.0):
-            corpo.add(
-                Mesh(
-                    CylinderGeometry(0.016, 0.016, 2.55, segments=10),
-                    m["metal"],
-                    position=(0.55, 0.92, lado * 0.43),
-                    rotation=(0.0, 0.0, 90.0),
-                )
-            )
-            for indice in range(6):
-                sem_sombra.append(
+        if C.DETALHES_COMPLETOS:
+            for lado in (-1.0, 1.0):
+                corpo.add(
                     Mesh(
-                        CylinderGeometry(0.014, 0.014, 0.27, segments=8),
+                        CylinderGeometry(0.016, 0.016, 2.55, segments=C.SMALL_SEGMENTS),
                         m["metal"],
-                        position=(-0.55 + indice * 0.44, 0.80, lado * 0.43),
+                        position=(0.55, 0.92, lado * 0.43),
+                        rotation=(0.0, 0.0, 90.0),
                     )
                 )
+                for indice in range(6):
+                    sem_sombra.append(
+                        Mesh(
+                            CylinderGeometry(0.014, 0.014, 0.27, segments=C.SMALL_SEGMENTS),
+                            m["metal"],
+                            position=(-0.55 + indice * 0.44, 0.80, lado * 0.43),
+                        )
+                    )
         corpo.add(*sem_sombra)
 
         # Torre de comando com painéis, janelas, escotilha, periscópio e antenas.
         torre = Object3D(position=(0.35, 0.0, 0.0))
         torre.add(
             Mesh(
-                CylinderGeometry(0.31, 0.45, 0.62, segments=24),
+                CylinderGeometry(0.31, 0.45, 0.62, segments=C.ROUND_SEGMENTS),
                 m["torre"],
                 position=(0.0, 0.98, 0.0),
                 scale=(1.0, 1.0, 0.72),
@@ -272,12 +274,12 @@ class Submarino:
                 position=(0.326, 1.10, 0.0),
             ),
             Mesh(
-                CylinderGeometry(0.17, 0.17, 0.05, segments=20),
+                CylinderGeometry(0.17, 0.17, 0.05, segments=C.ROUND_SEGMENTS),
                 m["latao"],
                 position=(-0.12, 1.405, 0.0),
             ),
             Mesh(
-                CylinderGeometry(0.045, 0.045, 0.86, segments=12),
+                CylinderGeometry(0.045, 0.045, 0.86, segments=C.SMALL_SEGMENTS),
                 m["metal"],
                 position=(0.18, 1.80, 0.0),
             ),
@@ -287,12 +289,12 @@ class Submarino:
                 position=(0.25, 2.22, 0.0),
             ),
             Mesh(
-                CylinderGeometry(0.012, 0.012, 1.30, segments=8),
+                CylinderGeometry(0.012, 0.012, 1.30, segments=C.SMALL_SEGMENTS),
                 m["metal"],
                 position=(-0.22, 2.00, 0.0),
             ),
             Mesh(
-                CylinderGeometry(0.060, 0.060, 0.56, segments=10),
+                CylinderGeometry(0.060, 0.060, 0.56, segments=C.SMALL_SEGMENTS),
                 m["metal"],
                 position=(-0.38, 1.70, 0.0),
             ),
@@ -302,7 +304,7 @@ class Submarino:
                 position=(-0.38, 1.99, 0.0),
             ),
             Mesh(
-                SphereGeometry(segments=16, rings=8),
+                SphereGeometry(segments=C.ROUND_SEGMENTS, rings=C.ROUND_RINGS),
                 m["metal"],
                 position=(0.02, 1.53, 0.0),
                 scale=(0.12, 0.035, 0.12),
@@ -319,13 +321,13 @@ class Submarino:
         # Holofote frontal, com lente emissiva.
         torre.add(
             Mesh(
-                CylinderGeometry(0.13, 0.16, 0.22, segments=16),
+                CylinderGeometry(0.13, 0.16, 0.22, segments=C.ROUND_SEGMENTS),
                 m["metal"],
                 position=(0.38, 1.02, 0.0),
                 rotation=(0.0, 0.0, -90.0),
             ),
             Mesh(
-                CylinderGeometry(0.105, 0.105, 0.025, segments=16),
+                CylinderGeometry(0.105, 0.105, 0.025, segments=C.ROUND_SEGMENTS),
                 m["holofote"],
                 position=(0.50, 1.02, 0.0),
                 rotation=(0.0, 0.0, -90.0),
@@ -337,13 +339,13 @@ class Submarino:
             for x in (-1.25, -0.45, 0.35, 1.15):
                 corpo.add(
                     Mesh(
-                        CylinderGeometry(0.095, 0.095, 0.035, segments=18),
+                        CylinderGeometry(0.095, 0.095, 0.035, segments=C.ROUND_SEGMENTS),
                         m["latao"],
                         position=(x, 0.16, lado * 0.665),
                         rotation=(90.0, 0.0, 0.0),
                     ),
                     Mesh(
-                        CylinderGeometry(0.066, 0.066, 0.040, segments=18),
+                        CylinderGeometry(0.066, 0.066, 0.040, segments=C.ROUND_SEGMENTS),
                         m["luz_quente"],
                         position=(x, 0.16, lado * 0.682),
                         rotation=(90.0, 0.0, 0.0),
@@ -353,19 +355,19 @@ class Submarino:
         # Luzes de navegação: bombordo vermelho, estibordo verde e popa branca.
         luzes_navegacao = (
             Mesh(
-                SphereGeometry(segments=12, rings=6),
+                SphereGeometry(segments=C.SMALL_SEGMENTS, rings=C.SMALL_RINGS),
                 m["luz_vermelha"],
                 position=(2.18, 0.04, -0.67),
                 scale=(0.07, 0.07, 0.07),
             ),
             Mesh(
-                SphereGeometry(segments=12, rings=6),
+                SphereGeometry(segments=C.SMALL_SEGMENTS, rings=C.SMALL_RINGS),
                 m["luz_verde"],
                 position=(2.18, 0.04, 0.67),
                 scale=(0.07, 0.07, 0.07),
             ),
             Mesh(
-                SphereGeometry(segments=12, rings=6),
+                SphereGeometry(segments=C.SMALL_SEGMENTS, rings=C.SMALL_RINGS),
                 m["luz_branca"],
                 position=(-3.02, 0.36, 0.0),
                 scale=(0.065, 0.065, 0.065),
@@ -414,7 +416,7 @@ class Submarino:
         self.helice = Object3D(position=(-3.30, 0.0, 0.0))
         self.helice.add(
             Mesh(
-                CylinderGeometry(0.18, 0.22, 0.34, segments=18),
+                CylinderGeometry(0.18, 0.22, 0.34, segments=C.ROUND_SEGMENTS),
                 m["helice"],
                 rotation=(0.0, 0.0, 90.0),
             )
@@ -433,13 +435,29 @@ class Submarino:
 
         self.root.add(corpo, torre, leme, proa, self.helice)
         self._sem_sombra = tuple(sem_sombra)
+        self._meshes = self._coletar_meshes()
+        # Somente o casco e a base da torre formam a silhueta da sombra.
+        self._silhueta = tuple(corpo.children[:3]) + (torre.children[0],)
         self.apply()
         return self.root
 
+    def _coletar_meshes(self):
+        """Percorre a hierarquia e devolve todas as malhas do modelo."""
+        pilha = [self.root]
+        meshes = []
+        while pilha:
+            no = pilha.pop()
+            if isinstance(no, Mesh):
+                meshes.append(no)
+            pilha.extend(no.children)
+        return tuple(meshes)
+
     def _atualizar_sombras(self):
-        """Mantém detalhes finos e luzes fora do passe de profundidade."""
-        for node in self._sem_sombra:
-            node.setCastShadow(False)
+        """Deixa no depth pass apenas a silhueta principal do submarino."""
+        for node in self._meshes:
+            node.castShadow = False
+        for node in self._silhueta:
+            node.castShadow = True
 
     def _atualizar_luzes(self):
         """Pulsa as luzes internas e aumenta a emissão durante a abdução."""

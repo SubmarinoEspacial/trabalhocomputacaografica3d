@@ -7,6 +7,8 @@ uniform vec2 u_texel_size;
 // Intensidade do halo e limiar de brilho que alimenta o bloom.
 uniform float u_bloom_strength;
 uniform float u_bloom_threshold;
+// u_bloom_enabled permite ao perfil baixo pular todas as amostras do halo.
+uniform int u_bloom_enabled;
 // Escurecimento suave das bordas e tinta fria do grade noturno.
 uniform float u_vignette_strength;
 uniform vec3 u_cool_tint;
@@ -22,23 +24,25 @@ void main() {
     vec3 color = texture2D(u_scene_texture, v_uv).rgb;
     vec2 t = u_texel_size;
 
-    // Oito amostras próximas formam o núcleo do brilho e quatro distantes
-    // espalham um halo suave sem exigir um segundo passe de desfoque.
-    vec3 bloom =
-        amostraBrilhante(v_uv + vec2( 4.0,  0.0) * t) +
-        amostraBrilhante(v_uv + vec2(-4.0,  0.0) * t) +
-        amostraBrilhante(v_uv + vec2( 0.0,  4.0) * t) +
-        amostraBrilhante(v_uv + vec2( 0.0, -4.0) * t) +
-        amostraBrilhante(v_uv + vec2( 3.0,  3.0) * t) +
-        amostraBrilhante(v_uv + vec2(-3.0,  3.0) * t) +
-        amostraBrilhante(v_uv + vec2( 3.0, -3.0) * t) +
-        amostraBrilhante(v_uv + vec2(-3.0, -3.0) * t) +
-        0.55 * amostraBrilhante(v_uv + vec2(10.0,  0.0) * t) +
-        0.55 * amostraBrilhante(v_uv + vec2(-10.0, 0.0) * t) +
-        0.55 * amostraBrilhante(v_uv + vec2( 0.0, 10.0) * t) +
-        0.55 * amostraBrilhante(v_uv + vec2( 0.0, -10.0) * t);
-    bloom /= 10.2;
-    color += bloom * u_cool_tint * u_bloom_strength;
+    if (u_bloom_enabled != 0) {
+        // Oito amostras próximas formam o núcleo do brilho e quatro distantes
+        // espalham um halo suave sem exigir um segundo passe de desfoque.
+        vec3 bloom =
+            amostraBrilhante(v_uv + vec2( 4.0,  0.0) * t) +
+            amostraBrilhante(v_uv + vec2(-4.0,  0.0) * t) +
+            amostraBrilhante(v_uv + vec2( 0.0,  4.0) * t) +
+            amostraBrilhante(v_uv + vec2( 0.0, -4.0) * t) +
+            amostraBrilhante(v_uv + vec2( 3.0,  3.0) * t) +
+            amostraBrilhante(v_uv + vec2(-3.0,  3.0) * t) +
+            amostraBrilhante(v_uv + vec2( 3.0, -3.0) * t) +
+            amostraBrilhante(v_uv + vec2(-3.0, -3.0) * t) +
+            0.55 * amostraBrilhante(v_uv + vec2(10.0,  0.0) * t) +
+            0.55 * amostraBrilhante(v_uv + vec2(-10.0, 0.0) * t) +
+            0.55 * amostraBrilhante(v_uv + vec2( 0.0, 10.0) * t) +
+            0.55 * amostraBrilhante(v_uv + vec2( 0.0, -10.0) * t);
+        bloom /= 10.2;
+        color += bloom * u_cool_tint * u_bloom_strength;
+    }
 
     // Grade frio discreto preserva a leitura noturna sem lavar as cores das luzes.
     color = mix(color, color * u_cool_tint, 0.06);

@@ -161,31 +161,31 @@ class DiscoVoador:
         corpo = Object3D()
         corpo.add(
             Mesh(
-                SphereGeometry(segments=40, rings=20),
+                SphereGeometry(segments=C.ROUND_SEGMENTS, rings=C.ROUND_RINGS),
                 m["casco"],
                 position=(0.0, -0.08, 0.0),
                 scale=(1.80, 0.22, 1.42),
             ),
             Mesh(
-                SphereGeometry(segments=40, rings=20),
+                SphereGeometry(segments=C.ROUND_SEGMENTS, rings=C.ROUND_RINGS),
                 m["casco"],
                 position=(0.0, 0.10, 0.0),
                 scale=(1.66, 0.26, 1.30),
             ),
             Mesh(
-                SphereGeometry(segments=40, rings=16),
+                SphereGeometry(segments=C.ROUND_SEGMENTS, rings=C.ROUND_RINGS),
                 m["metal"],
                 position=(0.0, 0.02, 0.0),
                 scale=(1.94, 0.10, 1.54),
             ),
             Mesh(
-                SphereGeometry(segments=32, rings=16),
+                SphereGeometry(segments=C.ROUND_SEGMENTS, rings=C.ROUND_RINGS),
                 m["casco_escuro"],
                 position=(0.0, -0.28, 0.0),
                 scale=(1.12, 0.24, 0.92),
             ),
             Mesh(
-                SphereGeometry(segments=32, rings=12),
+                SphereGeometry(segments=C.ROUND_SEGMENTS, rings=C.ROUND_RINGS),
                 m["aro_luz"],
                 position=(0.0, 0.04, 0.0),
                 scale=(1.90, 0.045, 1.52),
@@ -193,32 +193,33 @@ class DiscoVoador:
         )
 
         # Painéis superiores com UV de caixa, distribuídos em anel.
-        for indice in range(12):
-            angulo = 2.0 * math.pi * indice / 12.0
-            corpo.add(
-                Mesh(
-                    BoxGeometry(0.42, 0.032, 0.24),
-                    m["painel"],
-                    position=(1.40 * math.cos(angulo), 0.205, 1.10 * math.sin(angulo)),
-                    rotation=(0.0, math.degrees(angulo) + 90.0, 0.0),
+        if C.DETALHES_COMPLETOS:
+            for indice in range(12):
+                angulo = 2.0 * math.pi * indice / 12.0
+                corpo.add(
+                    Mesh(
+                        BoxGeometry(0.42, 0.032, 0.24),
+                        m["painel"],
+                        position=(1.40 * math.cos(angulo), 0.205, 1.10 * math.sin(angulo)),
+                        rotation=(0.0, math.degrees(angulo) + 90.0, 0.0),
+                    )
                 )
-            )
 
         # Base da cúpula, vidro e cabine interna iluminada.
         corpo.add(
             Mesh(
-                CylinderGeometry(0.62, 0.72, 0.14, segments=28),
+                CylinderGeometry(0.62, 0.72, 0.14, segments=C.ROUND_SEGMENTS),
                 m["latao"],
                 position=(0.0, 0.285, 0.0),
             ),
             Mesh(
-                SphereGeometry(segments=32, rings=16),
+                SphereGeometry(segments=C.ROUND_SEGMENTS, rings=C.ROUND_RINGS),
                 m["cockpit"],
                 position=(0.0, 0.40, 0.0),
                 scale=(0.30, 0.22, 0.30),
             ),
             Mesh(
-                SphereGeometry(segments=40, rings=20),
+                SphereGeometry(segments=C.ROUND_SEGMENTS, rings=C.ROUND_RINGS),
                 m["domo"],
                 position=(0.0, 0.42, 0.0),
                 scale=(0.60, 0.46, 0.60),
@@ -229,12 +230,12 @@ class DiscoVoador:
         # Antena curta no topo da cúpula.
         corpo.add(
             Mesh(
-                CylinderGeometry(0.012, 0.012, 0.44, segments=8),
+                CylinderGeometry(0.012, 0.012, 0.44, segments=C.SMALL_SEGMENTS),
                 m["metal"],
                 position=(0.0, 0.93, 0.0),
             ),
             Mesh(
-                SphereGeometry(segments=10, rings=6),
+                SphereGeometry(segments=C.SMALL_SEGMENTS, rings=C.SMALL_RINGS),
                 m["aro_luz"],
                 position=(0.0, 1.16, 0.0),
                 scale=(0.045, 0.045, 0.045),
@@ -244,12 +245,12 @@ class DiscoVoador:
         # Emissor inferior e quatro luzes auxiliares.
         corpo.add(
             Mesh(
-                CylinderGeometry(0.34, 0.48, 0.15, segments=24),
+                CylinderGeometry(0.34, 0.48, 0.15, segments=C.ROUND_SEGMENTS),
                 m["latao"],
                 position=(0.0, -0.42, 0.0),
             ),
             Mesh(
-                CylinderGeometry(0.22, 0.22, 0.035, segments=24),
+                CylinderGeometry(0.22, 0.22, 0.035, segments=C.ROUND_SEGMENTS),
                 m["aro_luz"],
                 position=(0.0, -0.50, 0.0),
             ),
@@ -257,7 +258,7 @@ class DiscoVoador:
         for indice in range(8):
             angulo = 2.0 * math.pi * indice / 8.0
             luz = Mesh(
-                SphereGeometry(segments=10, rings=6),
+                SphereGeometry(segments=C.SMALL_SEGMENTS, rings=C.SMALL_RINGS),
                 m["luzes"][indice % len(m["luzes"])],
                 position=(0.92 * math.cos(angulo), -0.27, 0.92 * math.sin(angulo)),
                 scale=(0.065, 0.065, 0.065),
@@ -265,13 +266,13 @@ class DiscoVoador:
             sem_sombra.append(luz)
             corpo.add(luz)
 
-        # Anel externo com dezesseis luzes alternadas; o pivô gira no eixo Y.
+        # Anel externo com luzes alternadas; a quantidade vem do perfil de qualidade.
         self.anel = Object3D(position=(0.0, 0.04, 0.0))
-        for indice in range(16):
-            angulo = 2.0 * math.pi * indice / 16.0
+        for indice in range(C.DISC_RING_LIGHTS):
+            angulo = 2.0 * math.pi * indice / C.DISC_RING_LIGHTS
             raio = 1.83
             luz = Mesh(
-                SphereGeometry(segments=12, rings=6),
+                SphereGeometry(segments=C.SMALL_SEGMENTS, rings=C.SMALL_RINGS),
                 m["luzes"][indice % len(m["luzes"])],
                 position=(raio * math.cos(angulo), 0.0, raio * math.sin(angulo)),
                 scale=(0.105, 0.105, 0.105),
@@ -282,11 +283,11 @@ class DiscoVoador:
         # Feixe: cone externo suave e núcleo mais estreito, ambos aditivos.
         self.feixe = Object3D(position=(0.0, -1.28, 0.0))
         feixe_externo = Mesh(
-            ConeGeometry(radius=1.35, height=2.50, segments=36),
+            ConeGeometry(radius=1.12, height=2.50, segments=C.ROUND_SEGMENTS),
             self._beam_materials[0],
         )
         feixe_core = Mesh(
-            ConeGeometry(radius=0.52, height=2.46, segments=28),
+            ConeGeometry(radius=0.42, height=2.46, segments=C.ROUND_SEGMENTS),
             self._beam_materials[1],
             position=(0.0, 0.02, 0.0),
         )
@@ -295,13 +296,29 @@ class DiscoVoador:
 
         self.root.add(corpo, self.anel, self.feixe)
         self._sem_sombra = tuple(sem_sombra)
+        self._meshes = self._coletar_meshes()
+        # Somente as quatro camadas principais do disco formam a silhueta da sombra.
+        self._silhueta = tuple(corpo.children[:4])
         self.apply()
         return self.root
 
+    def _coletar_meshes(self):
+        """Percorre a hierarquia e devolve todas as malhas do modelo."""
+        pilha = [self.root]
+        meshes = []
+        while pilha:
+            no = pilha.pop()
+            if isinstance(no, Mesh):
+                meshes.append(no)
+            pilha.extend(no.children)
+        return tuple(meshes)
+
     def _atualizar_sombras(self):
-        """Remove cúpula, luzes e feixe do passe de profundidade."""
-        for node in self._sem_sombra:
-            node.setCastShadow(False)
+        """Deixa no depth pass apenas a silhueta principal do disco."""
+        for node in self._meshes:
+            node.castShadow = False
+        for node in self._silhueta:
+            node.castShadow = True
 
     def apply(self):
         """Aplica flutuação, rotação do anel, luzes e estado do feixe."""

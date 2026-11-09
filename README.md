@@ -25,6 +25,27 @@ Teste da máquina de estados (sem OpenGL): `python -m tests.test_abducao`
 
 ## Controles
 W/A/S/D mover, Q/E subir/descer, setas girar, ESPAÇO pausar/retomar, R reiniciar a interação, Esc sair.
+F1 perfil baixa, F2 perfil media, F4 perfil alta, F3 mostrar/ocultar diagnóstico (FPS e tempos).
+
+## Desempenho e perfis de qualidade
+O padrão é `media`; também é possível escolher no arranque com `--quality baixa|media|alta`
+(`--qualidade` também funciona). F1/F2/F4 trocam o perfil em tempo real, recriando
+a sombra e a cena com os novos parâmetros e reiniciando a sequência. A janela usa
+960 × 540 por padrão (`WINDOW_WIDTH`/`WINDOW_HEIGHT` em `config.py`). Antes da
+sintonia, a cena medida em uma Intel Iris Xe ficou em cerca de 10 FPS; após os cortes,
+`baixa` ficou em torno de 36 FPS e `media` em torno de 29–31 FPS. `alta` preserva a
+qualidade visual anterior (cerca de 12–13 FPS na mesma máquina).
+
+| Perfil | Sombra | PCF | Água | Ondas | Luzes pontuais | Detalhes | Bloom | Geometria |
+|---|---|---|---|---|---|---|---|---|
+| `baixa` | 1024 | 1 amostra | 80 × 80 | 3 | 2 | ocultados | desligado | 8/6 segmentos/anéis |
+| `media` | 1024 | 4 amostras (2 × 2) | 80 × 80 | 5 | 2 | ocultados; luzes do anel: 8 | ligado | 12/8 segmentos/anéis |
+| `alta` | 2048 | 9 amostras (3 × 3) | 200 × 200 | 5 | 4 | completos; luzes do anel: 16 | ligado | 32/16 segmentos/anéis |
+
+No `media`, o total aproximado de meshes visíveis ficou em 84–86 (somente os modelos
+principais entram no passe de sombra). O perfil `alta` é destinado à apresentação visual;
+`baixa` e `media` mantêm os requisitos de dois modelos, hierarquia, estados, pausa,
+textura UV, luz direcional com normais e shadow mapping atualizado.
 
 ## Onde está cada recurso gráfico
 | Requisito | Arquivo / classe / função |

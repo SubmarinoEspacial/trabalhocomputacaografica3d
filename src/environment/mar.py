@@ -13,7 +13,7 @@ from src.environment.night_materials import NoiteWaterMaterial
 def water_height(x, z, t):
     """Altura absoluta da superfície, usando a mesma soma do shader de vértice."""
     height = C.WATER_LEVEL
-    ondas = C.WATER_WAVES + C.WATER_DETAIL_WAVES
+    ondas = (C.WATER_WAVES + C.WATER_DETAIL_WAVES)[:C.WATER_WAVE_COUNT]
     for direction_x, direction_z, amplitude, wave_number, speed in ondas:
         phase = wave_number * (direction_x * x + direction_z * z) + speed * t
         height += amplitude * math.sin(phase)
@@ -24,7 +24,7 @@ def water_slope(x, z, t):
     """Retorna dH/dx e dH/dz para inclinar o submarino sobre a onda."""
     derivative_x = 0.0
     derivative_z = 0.0
-    ondas = C.WATER_WAVES + C.WATER_DETAIL_WAVES
+    ondas = (C.WATER_WAVES + C.WATER_DETAIL_WAVES)[:C.WATER_WAVE_COUNT]
     for direction_x, direction_z, amplitude, wave_number, speed in ondas:
         phase = wave_number * (direction_x * x + direction_z * z) + speed * t
         slope = amplitude * wave_number * math.cos(phase)

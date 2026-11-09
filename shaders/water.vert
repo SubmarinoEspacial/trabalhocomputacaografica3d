@@ -16,6 +16,8 @@ uniform vec4 u_wave3;
 uniform float u_wave_speed3;
 uniform vec4 u_wave4;
 uniform float u_wave_speed4;
+// u_wave_count limita a soma de senos: 3 no perfil baixo e 5 nos demais.
+uniform int u_wave_count;
 uniform mat4 u_light_view_projection_eye;
 varying vec3 v_normal_eye;
 varying vec3 v_position_eye;
@@ -28,24 +30,40 @@ void main() {
     float phase0 = u_wave0.w * dot(u_wave0.xy, xz) + u_wave_speed0 * u_time;
     float phase1 = u_wave1.w * dot(u_wave1.xy, xz) + u_wave_speed1 * u_time;
     float phase2 = u_wave2.w * dot(u_wave2.xy, xz) + u_wave_speed2 * u_time;
-    float phase3 = u_wave3.w * dot(u_wave3.xy, xz) + u_wave_speed3 * u_time;
-    float phase4 = u_wave4.w * dot(u_wave4.xy, xz) + u_wave_speed4 * u_time;
+
+    float phase3 = 0.0;
+    if (u_wave_count > 3) {
+        phase3 = u_wave3.w * dot(u_wave3.xy, xz) + u_wave_speed3 * u_time;
+    }
+    float phase4 = 0.0;
+    if (u_wave_count > 4) {
+        phase4 = u_wave4.w * dot(u_wave4.xy, xz) + u_wave_speed4 * u_time;
+    }
 
     float waveHeight = u_wave0.z * sin(phase0)
                      + u_wave1.z * sin(phase1)
-                     + u_wave2.z * sin(phase2)
-                     + u_wave3.z * sin(phase3)
-                     + u_wave4.z * sin(phase4);
+                     + u_wave2.z * sin(phase2);
+    if (u_wave_count > 3) {
+        waveHeight += u_wave3.z * sin(phase3);
+    }
+    if (u_wave_count > 4) {
+        waveHeight += u_wave4.z * sin(phase4);
+    }
+
     float derivativeX = u_wave0.z * u_wave0.w * u_wave0.x * cos(phase0)
                       + u_wave1.z * u_wave1.w * u_wave1.x * cos(phase1)
-                      + u_wave2.z * u_wave2.w * u_wave2.x * cos(phase2)
-                      + u_wave3.z * u_wave3.w * u_wave3.x * cos(phase3)
-                      + u_wave4.z * u_wave4.w * u_wave4.x * cos(phase4);
+                      + u_wave2.z * u_wave2.w * u_wave2.x * cos(phase2);
     float derivativeZ = u_wave0.z * u_wave0.w * u_wave0.y * cos(phase0)
                       + u_wave1.z * u_wave1.w * u_wave1.y * cos(phase1)
-                      + u_wave2.z * u_wave2.w * u_wave2.y * cos(phase2)
-                      + u_wave3.z * u_wave3.w * u_wave3.y * cos(phase3)
-                      + u_wave4.z * u_wave4.w * u_wave4.y * cos(phase4);
+                      + u_wave2.z * u_wave2.w * u_wave2.y * cos(phase2);
+    if (u_wave_count > 3) {
+        derivativeX += u_wave3.z * u_wave3.w * u_wave3.x * cos(phase3);
+        derivativeZ += u_wave3.z * u_wave3.w * u_wave3.y * cos(phase3);
+    }
+    if (u_wave_count > 4) {
+        derivativeX += u_wave4.z * u_wave4.w * u_wave4.x * cos(phase4);
+        derivativeZ += u_wave4.z * u_wave4.w * u_wave4.y * cos(phase4);
+    }
 
     vec3 displacedPosition = vec3(gl_Vertex.x, waveHeight, gl_Vertex.z);
     vec3 normalWorld = normalize(vec3(-derivativeX, 1.0, -derivativeZ));

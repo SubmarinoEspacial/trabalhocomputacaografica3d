@@ -16,11 +16,12 @@ uniform float u_material_shininess;
 // u_use_texture permite reutilizar este shader por materiais sem imagem.
 uniform int u_use_texture;
 uniform sampler2D u_texture;
-// Map de profundidade, tamanho do texel, bias e flag de recepcao de sombra.
+// u_shadow_map armazena a profundidade vista pela lua; u_pcf_samples escolhe 1, 4 ou 9 amostras.
 uniform sampler2D u_shadow_map;
 uniform vec2 u_shadow_texel_size;
 uniform float u_shadow_bias;
 uniform int u_shadow_enabled;
+uniform int u_pcf_samples;
 // u_receive_shadow e enviado por cada Mesh; castShadow e filtrado no passe 1.
 uniform int u_receive_shadow;
 // Uniforms da neblina do fundo marinho; a cor coincide com o horizonte do céu.
@@ -41,6 +42,12 @@ varying vec3 v_normal_eye;
 varying vec3 v_position_eye;
 varying vec2 v_uv;
 varying vec4 v_shadow_position;
+
+// Compara a profundidade atual com a amostrada pela luz; usada por todos os PCF.
+float comparar_profundidade(vec2 uv, float z, float bias) {
+    float maisProximo = texture2D(u_shadow_map, uv).r;
+    return z - bias > maisProximo ? 1.0 : 0.0;
+}
 
 // Soma a contribuição de uma luz pontual com atenuação quadrática no alcance.
 void acumularLuzPontual(
@@ -95,16 +102,26 @@ void main() {
         lightCoord.x >= 0.0 && lightCoord.x <= 1.0 &&
         lightCoord.y >= 0.0 && lightCoord.y <= 1.0 &&
         lightCoord.z >= 0.0 && lightCoord.z <= 1.0) {
-        // PCF 5x5: 25 comparações suavizam a borda serrilhada do depth map.
+        // O perfil escolhe entre centro (1), dois eixos (4) e uma grade 3x3 (9).
         float bias = max(u_shadow_bias * (1.0 - diffuse), u_shadow_bias * 0.2);
-        for (int x = -2; x <= 2; x++) {
-            for (int y = -2; y <= 2; y++) {
-                vec2 offset = vec2(float(x), float(y)) * u_shadow_texel_size;
-                float closestDepth = texture2D(u_shadow_map, lightCoord.xy + offset).r;
-                shadow += lightCoord.z - bias > closestDepth ? 1.0 : 0.0;
+        if (u_pcf_samples <= 1) {
+            shadow = comparar_profundidade(lightCoord.xy, lightCoord.z, bias);
+        } else if (u_pcf_samples <= 4) {
+            vec2 meioTexel = u_shadow_texel_size * 0.5;
+            shadow += comparar_profundidade(lightCoord.xy + vec2(-meioTexel.x, -meioTexel.y), lightCoord.z, bias);
+            shadow += comparar_profundidade(lightCoord.xy + vec2( meioTexel.x, -meioTexel.y), lightCoord.z, bias);
+            shadow += comparar_profundidade(lightCoord.xy + vec2(-meioTexel.x,  meioTexel.y), lightCoord.z, bias);
+            shadow += comparar_profundidade(lightCoord.xy + vec2( meioTexel.x,  meioTexel.y), lightCoord.z, bias);
+            shadow /= 4.0;
+        } else {
+            for (int x = -1; x <= 1; x++) {
+                for (int y = -1; y <= 1; y++) {
+                    vec2 offset = vec2(float(x), float(y)) * u_shadow_texel_size;
+                    shadow += comparar_profundidade(lightCoord.xy + offset, lightCoord.z, bias);
+                }
             }
+            shadow /= 9.0;
         }
-        shadow /= 25.0;
     }
 
     vec3 ambientTerm = baseColor * u_light_ambient;

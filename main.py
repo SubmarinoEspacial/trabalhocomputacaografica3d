@@ -2,6 +2,7 @@
 import math
 import os
 import sys
+import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "framework"))
 
@@ -16,6 +17,7 @@ from OpenGL.GL import (
 from OpenGL.GLU import gluPerspective
 
 from core.base import Base
+from core.mesh import Mesh
 from core_ext.scene import Scene
 from src.controls.camera_rig import MovementRig
 from src import config as C
@@ -71,17 +73,51 @@ class Aplicacao(Base):
         gluPerspective(55.0, self.largura / self.altura, 0.1, 300.0)
         glMatrixMode(GL_MODELVIEW)
         glClearColor(*C.SKY_COLOR)
+        self._preparar_perfilamento()
 
         self.lighting = setup_luz()
+        self._criar_sombra()
+        self.camera_rig = MovementRig(posicao=(0.0, 13.0, 34.0))
+        self.camera_rig.pitch = -17.0
+        self.postprocess = PostProcess(self.largura, self.altura)
+        self._criar_mundo()
+
+        self.pausado = False
+        self.tempoAnimacao = 0.0
+        self._espaco_anterior = False
+        self._r_anterior = False
+        self._f3_anterior = False
+        self._f1_anterior = False
+        self._f2_anterior = False
+        self._f4_anterior = False
+        self._frames_perfil = 0
+        self._ultima_impressao = time.perf_counter()
+        self._acumulos = {
+            "logica": 0.0,
+            "arvore": 0.0,
+            "sombra": 0.0,
+            "principal": 0.0,
+            "pos": 0.0,
+            "frame": 0.0,
+        }
+        self._mesh_draw_principal = 0.0
+        self._mesh_draw_sombra = 0.0
+        self._atualizar_titulo(False)
+
+    def _criar_sombra(self):
+        """Cria a sombra lunar usando a resolução do perfil atual."""
         # O depth map acompanha a ação em vez de ficar preso ao centro do mundo.
-        self.shadow_map = ActionShadowMap(self.lighting)
+        self.shadow_map = ActionShadowMap(
+            self.lighting,
+            resolution=C.SHADOW_RESOLUTION,
+        )
         self.lighting.light.shadowMap = self.shadow_map
         self.lighting.light.shadowCamera = self.shadow_map.shadowCamera
         self.lighting.light.shadowMaterial = self.shadow_map.depthMaterial
         self.lighting.light.shadowRenderTarget = self.shadow_map.target
-        self.camera_rig = MovementRig(posicao=(0.0, 13.0, 34.0))
-        self.camera_rig.pitch = -17.0
-        self.postprocess = PostProcess(self.largura, self.altura)
+
+    def _criar_mundo(self):
+        """Monta céu, água, modelos e efeitos conforme o perfil atual."""
         self.scene = Scene()
         # O céu entra primeiro no passe opaco para servir de fundo do horizonte.
         self.ceu = build_ceu(self.scene)
@@ -107,10 +143,115 @@ class Aplicacao(Base):
         self.efeitos = EfeitosAbducao(self.scene)
         self.controlador = AbducaoController(self.submarino, self.disco)
 
-        self.pausado = False
+    def _trocar_perfil_qualidade(self, nome):
+        """Aplica um perfil e recria sombra/cena com os novos parâmetros."""
+        if nome == C.QUALITY:
+            return
+        C.aplicar_perfil_qualidade(nome)
+        self._criar_sombra()
+        self._criar_mundo()
         self.tempoAnimacao = 0.0
-        self._espaco_anterior = False
-        self._r_anterior = False
+        self.pausado = False
+        self._zerar_perfil()
+        pygame.display.set_caption(
+            f"Validacao OpenGL | Perfil {C.QUALITY} | F3 mostra o perfil"
+        )
+
+    def _preparar_perfilamento(self):
+        """Ativa F3/`--profile` e mede o custo de Mesh.draw sem mudar a cena."""
+        self.perfil_ativo = any(
+            arg in ("--profile", "--perfilar") for arg in sys.argv[1:]
+        )
+        self._mesh_original_draw = Mesh.draw
+
+        def draw_medido(mesh, render_pass=None):
+            if not self.perfil_ativo:
+                return self._mesh_original_draw(mesh, render_pass)
+            inicio = time.perf_counter()
+            try:
+                return self._mesh_original_draw(mesh, render_pass)
+            finally:
+                gasto = time.perf_counter() - inicio
+                if render_pass == "shadow":
+                    self._mesh_draw_sombra += gasto
+                else:
+                    self._mesh_draw_principal += gasto
+
+        # O corredor medido é texto; a cena e os passes continuam os mesmos.
+        Mesh.draw = draw_medido
+
+    def _contar_arvore(self):
+        """Conta Meshes visíveis e geometria da água na hierarquia."""
+        total_meshes = 0
+        meshes_sombra = 0
+        vertices_agua = 0
+        indices_agua = 0
+        pilha = [(self.scene, True)]
+        while pilha:
+            no, pai_visivel = pilha.pop()
+            visivel = pai_visivel and no.visible
+            if isinstance(no, Mesh) and visivel:
+                total_meshes += 1
+                if no.castShadow:
+                    meshes_sombra += 1
+                geometria = no.geometry
+                segmentos_agua = getattr(geometria, "segments", None)
+                if segmentos_agua is not None:
+                    vertices_agua = max(
+                        vertices_agua,
+                        int(segmentos_agua) * int(segmentos_agua),
+                    )
+                    indices_agua = max(
+                        indices_agua,
+                        int(getattr(geometria, "vertex_count", 0)),
+                    )
+            if visivel:
+                pilha.extend((filho, visivel) for filho in no.children)
+        return total_meshes, meshes_sombra, vertices_agua, indices_agua
+
+    def _atualizar_titulo(self, ativa):
+        """Restaura ou aplica o sufixo de FPS no título da janela."""
+        titulo = "Validacao OpenGL"
+        if ativa:
+            titulo += " | F3"
+        pygame.display.set_caption(titulo)
+
+    def _zerar_perfil(self):
+        """Recomeça a média para a próxima leitura de F3."""
+        self._frames_perfil = 0
+        self._ultima_impressao = time.perf_counter()
+        for chave in self._acumulos:
+            self._acumulos[chave] = 0.0
+
+    def _registrar_frame(self, tempos):
+        """Acumula os tempos e mostra o diagnóstico a cada segundo."""
+        self._frames_perfil += 1
+        for chave, valor in tempos.items():
+            self._acumulos[chave] += valor
+
+        agora = time.perf_counter()
+        intervalo = agora - self._ultima_impressao
+        if intervalo < 1.0:
+            return
+
+        frames = max(1, self._frames_perfil)
+        contadores = self._acumulos
+        meshes, meshes_sombra, vertices_agua, indices_agua = self._contar_arvore()
+        luzes = self.lighting.point_light_count + 2
+        fps = frames / intervalo
+        texto = (
+            f"F3 {fps:.1f} | frame {contadores['frame'] / frames * 1000:.1f} ms | "
+            f"logica {contadores['logica'] / frames * 1000:.2f} | "
+            f"arvore {contadores['arvore'] / frames * 1000:.2f} | "
+            f"sombra {contadores['sombra'] / frames * 1000:.2f} | "
+            f"principal {contadores['principal'] / frames * 1000:.2f} | "
+            f"pos {contadores['pos'] / frames * 1000:.2f} | "
+            f"Meshes cena={meshes} sombra={meshes_sombra} | luzes={luzes} | "
+            f"agua_vtx={vertices_agua} idx={indices_agua} | sombra={self.shadow_map.resolution}px PCF={C.SHADOW_PCF_SAMPLES} | passes_pos=1"
+        )
+        print(texto)
+        pygame.display.set_caption(f"Validacao OpenGL | {texto}")
+        self._zerar_perfil()
 
     def _atualizar_luzes_pontuais(self):
         """Posiciona os porões/holofote do sub e as luzes do disco a cada quadro.
@@ -140,17 +281,6 @@ class Aplicacao(Base):
             ),
             PointLight(
                 (
-                    sub.position[0] + frente_x * 0.90 * escala,
-                    sub.position[1] + 1.05 * escala,
-                    sub.position[2] + frente_z * 0.90 * escala,
-                ),
-                C.SUB_SEARCHLIGHT_COLOR,
-                C.SUB_SEARCHLIGHT_STRENGTH * brilho_sub,
-                C.SUB_SEARCHLIGHT_RANGE,
-                enabled=sub.visible and escala > 0.15,
-            ),
-            PointLight(
-                (
                     disco.position[0],
                     altura_disco - 1.35 * C.DISC_SCALE,
                     disco.position[2],
@@ -171,13 +301,26 @@ class Aplicacao(Base):
                 C.UFO_GLOW_LIGHT_RANGE,
                 enabled=disco.root is not None and disco.root.visible,
             ),
+            PointLight(
+                (
+                    sub.position[0] + frente_x * 0.90 * escala,
+                    sub.position[1] + 1.05 * escala,
+                    sub.position[2] + frente_z * 0.90 * escala,
+                ),
+                C.SUB_SEARCHLIGHT_COLOR,
+                C.SUB_SEARCHLIGHT_STRENGTH * brilho_sub,
+                C.SUB_SEARCHLIGHT_RANGE,
+                enabled=sub.visible and escala > 0.15,
+            ),
         )
         self.lighting.set_point_lights(luzes, self.camera_rig)
 
     def update(self):
         """Atualiza controles e cena; renderiza mesmo quando a animação pausa."""
-        delta_quadro = self.deltaTime
+        # O delta real limita os saltos da animação se a máquina perder quadros.
+        delta_quadro = min(self.deltaTime, 0.05)
         teclas = pygame.key.get_pressed()
+        inicio_frame = time.perf_counter()
 
         espaco_pressionado = bool(teclas[pygame.K_SPACE])
         if espaco_pressionado and not self._espaco_anterior:
@@ -189,6 +332,28 @@ class Aplicacao(Base):
             self.controlador.reset()
         self._r_anterior = r_pressionado
 
+        f3_pressionado = bool(teclas[pygame.K_F3])
+        if f3_pressionado and not self._f3_anterior:
+            self.perfil_ativo = not self.perfil_ativo
+            self._zerar_perfil()
+            self._atualizar_titulo(self.perfil_ativo)
+        self._f3_anterior = f3_pressionado
+
+        f1_pressionado = bool(teclas[pygame.K_F1])
+        if f1_pressionado and not self._f1_anterior:
+            self._trocar_perfil_qualidade("baixa")
+        self._f1_anterior = f1_pressionado
+
+        f2_pressionado = bool(teclas[pygame.K_F2])
+        if f2_pressionado and not self._f2_anterior:
+            self._trocar_perfil_qualidade("media")
+        self._f2_anterior = f2_pressionado
+
+        f4_pressionado = bool(teclas[pygame.K_F4])
+        if f4_pressionado and not self._f4_anterior:
+            self._trocar_perfil_qualidade("alta")
+        self._f4_anterior = f4_pressionado
+
         # A câmera usa o tempo do quadro, inclusive enquanto a cena está pausada.
         self.camera_rig.update(delta_quadro, teclas)
         self.ceu.update(self.camera_rig)
@@ -197,6 +362,7 @@ class Aplicacao(Base):
         self.tempoAnimacao += delta_logica
         self.water_material.setTime(self.tempoAnimacao)
 
+        inicio_logica = time.perf_counter()
         if self.submarino.root is not None:
             self.controlador.update(delta_logica, self.tempoAnimacao)
             self.submarino.apply(self.tempoAnimacao)
@@ -205,16 +371,43 @@ class Aplicacao(Base):
             self.disco.apply()
         self.efeitos.update(self.disco, self.tempoAnimacao)
         self._atualizar_luzes_pontuais()
+        tempo_logica = time.perf_counter() - inicio_logica
 
         # O foco da sombra usa as posições lógicas, antes de desenhar a cena.
+        self._mesh_draw_principal = 0.0
+        self._mesh_draw_sombra = 0.0
+        inicio_sombra = time.perf_counter()
         self.shadow_map.updateFocus(delta_quadro, self.submarino, self.disco)
         self.shadow_map.render(self.scene, self.camera_rig)
+        tempo_sombra = time.perf_counter() - inicio_sombra
+
         # A cena é desenhada em textura e depois recebe bloom/vinheta na janela.
+        inicio_principal = time.perf_counter()
         self.postprocess.begin()
         self.camera_rig.apply()
         self.scene.render()
+        tempo_principal = time.perf_counter() - inicio_principal
+
+        inicio_pos = time.perf_counter()
         self.postprocess.end()
+        tempo_pos = time.perf_counter() - inicio_pos
+        tempo_frame = time.perf_counter() - inicio_frame
+        tempo_arvore = max(0.0, tempo_principal - self._mesh_draw_principal)
+
+        if self.perfil_ativo:
+            self._registrar_frame({
+                "logica": tempo_logica,
+                "arvore": tempo_arvore,
+                "sombra": tempo_sombra,
+                "principal": tempo_principal,
+                "pos": tempo_pos,
+                "frame": tempo_frame,
+            })
 
 
 if __name__ == "__main__":
-    Aplicacao()
+    Aplicacao(
+        largura=C.WINDOW_WIDTH,
+        altura=C.WINDOW_HEIGHT,
+        titulo="Validacao OpenGL",
+    )

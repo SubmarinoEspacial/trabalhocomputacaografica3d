@@ -146,6 +146,7 @@ class PostProcessMaterial:
         nomes = (
             "u_scene_texture", "u_texel_size", "u_bloom_strength",
             "u_bloom_threshold", "u_vignette_strength", "u_cool_tint",
+            "u_bloom_enabled",
         )
         self.uniforms = {
             nome: glGetUniformLocation(self.program, nome) for nome in nomes
@@ -159,6 +160,7 @@ class PostProcessMaterial:
         glUniform2f(uniform["u_texel_size"], self.texel_width, self.texel_height)
         glUniform1f(uniform["u_bloom_strength"], C.POST_BLOOM_STRENGTH)
         glUniform1f(uniform["u_bloom_threshold"], C.POST_BLOOM_THRESHOLD)
+        glUniform1i(uniform["u_bloom_enabled"], int(C.POST_BLOOM_ENABLED))
         glUniform1f(uniform["u_vignette_strength"], C.POST_VIGNETTE_STRENGTH)
         glUniform3f(uniform["u_cool_tint"], *C.POST_COOL_TINT)
         glActiveTexture(GL_TEXTURE0)

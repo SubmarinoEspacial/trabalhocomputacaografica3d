@@ -26,8 +26,10 @@ uniform float u_specular_strength;
 uniform sampler2D u_shadow_map;
 uniform vec2 u_shadow_texel_size;
 uniform float u_shadow_bias;
+// u_shadow_enabled liga o recebimento; u_pcf_samples escolhe 1, 4 ou 9 amostras.
 uniform int u_shadow_enabled;
 uniform int u_receive_shadow;
+uniform int u_pcf_samples;
 // Quatro luzes pontuais dinâmicas, já convertidas para o espaço do olho.
 uniform int u_point_light_count;
 uniform vec3 u_point_light_position_eye[4];
@@ -38,6 +40,12 @@ varying vec3 v_position_eye;
 varying vec3 v_world_position;
 varying float v_wave_height;
 varying vec4 v_shadow_position;
+
+// Compara a profundidade atual com a do shadow map para os modos de PCF.
+float comparar_profundidade(vec2 uv, float z, float bias) {
+    float maisProximo = texture2D(u_shadow_map, uv).r;
+    return z - bias > maisProximo ? 1.0 : 0.0;
+}
 
 // Atenuação quadrática e brilho pontual usados pelo feixe e pelas luzes do sub.
 void acumularLuzPontualAgua(
@@ -83,16 +91,26 @@ void main() {
         lightCoord.x >= 0.0 && lightCoord.x <= 1.0 &&
         lightCoord.y >= 0.0 && lightCoord.y <= 1.0 &&
         lightCoord.z >= 0.0 && lightCoord.z <= 1.0) {
-        // PCF 5x5 na água: a borda suave acompanha as ondas sem serrilhado.
+        // O perfil escolhe entre centro (1), dois eixos (4) e uma grade 3x3 (9).
         float bias = max(u_shadow_bias * (1.0 - diffuse), u_shadow_bias * 0.35);
-        for (int x = -2; x <= 2; x++) {
-            for (int y = -2; y <= 2; y++) {
-                vec2 offset = vec2(float(x), float(y)) * u_shadow_texel_size;
-                float depth = texture2D(u_shadow_map, lightCoord.xy + offset).r;
-                shadow += lightCoord.z - bias > depth ? 1.0 : 0.0;
+        if (u_pcf_samples <= 1) {
+            shadow = comparar_profundidade(lightCoord.xy, lightCoord.z, bias);
+        } else if (u_pcf_samples <= 4) {
+            vec2 meioTexel = u_shadow_texel_size * 0.5;
+            shadow += comparar_profundidade(lightCoord.xy + vec2(-meioTexel.x, -meioTexel.y), lightCoord.z, bias);
+            shadow += comparar_profundidade(lightCoord.xy + vec2( meioTexel.x, -meioTexel.y), lightCoord.z, bias);
+            shadow += comparar_profundidade(lightCoord.xy + vec2(-meioTexel.x,  meioTexel.y), lightCoord.z, bias);
+            shadow += comparar_profundidade(lightCoord.xy + vec2( meioTexel.x,  meioTexel.y), lightCoord.z, bias);
+            shadow /= 4.0;
+        } else {
+            for (int x = -1; x <= 1; x++) {
+                for (int y = -1; y <= 1; y++) {
+                    vec2 offset = vec2(float(x), float(y)) * u_shadow_texel_size;
+                    shadow += comparar_profundidade(lightCoord.xy + offset, lightCoord.z, bias);
+                }
             }
+            shadow /= 9.0;
         }
-        shadow /= 25.0;
     }
 
     float fresnel = pow(1.0 - max(dot(normal, viewDirection), 0.0), 5.0);

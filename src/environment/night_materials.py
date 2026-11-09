@@ -30,7 +30,9 @@ _UNIFORMS_NOTURNOS = ("u_exposure", "u_gamma", "u_fog_density")
 _UNIFORMS_AGUA = (
     "u_wave3", "u_wave_speed3", "u_wave4", "u_wave_speed4",
     "u_foam_texture", "u_foam_scale", "u_foam_strength", "u_specular_strength",
+    "u_pcf_samples", "u_wave_count",
 )
+_MAX_SLOTS_LUZ = 4
 _LUZ_APAGADA = ((0.0, 0.0, 0.0), (0.0, 0.0, 0.0), 0.0)
 
 
@@ -40,24 +42,25 @@ def _localizacoes_luzes_pontuais(program):
         "count": glGetUniformLocation(program, "u_point_light_count"),
         "position": tuple(
             glGetUniformLocation(program, f"u_point_light_position_eye[{i}]")
-            for i in range(C.MAX_POINT_LIGHTS)
+            for i in range(_MAX_SLOTS_LUZ)
         ),
         "color": tuple(
             glGetUniformLocation(program, f"u_point_light_color[{i}]")
-            for i in range(C.MAX_POINT_LIGHTS)
+            for i in range(_MAX_SLOTS_LUZ)
         ),
         "range": tuple(
             glGetUniformLocation(program, f"u_point_light_range[{i}]")
-            for i in range(C.MAX_POINT_LIGHTS)
+            for i in range(_MAX_SLOTS_LUZ)
         ),
     }
 
 
 def _enviar_luzes_pontuais(uniforms, luzes_olho, quantidade):
     """Envia apenas as luzes ativas e mantém os slots restantes apagados."""
+    quantidade = max(0, min(int(quantidade), C.MAX_POINT_LIGHTS, _MAX_SLOTS_LUZ))
     if uniforms["count"] != -1:
-        glUniform1i(uniforms["count"], int(quantidade))
-    for index in range(C.MAX_POINT_LIGHTS):
+        glUniform1i(uniforms["count"], quantidade)
+    for index in range(_MAX_SLOTS_LUZ):
         posicao, cor, alcance = (
             luzes_olho[index] if index < quantidade else _LUZ_APAGADA
         )
@@ -98,9 +101,10 @@ class NoiteLightingContext(LightingContext):
             for nome in _UNIFORMS_NOTURNOS
         }
         self.pointLightUniforms = _localizacoes_luzes_pontuais(self.program)
+        self.pcfSamplesLocation = glGetUniformLocation(self.program, "u_pcf_samples")
         self.point_light_count = 0
         self._point_lights_eye = tuple(
-            _LUZ_APAGADA for _ in range(C.MAX_POINT_LIGHTS)
+            _LUZ_APAGADA for _ in range(_MAX_SLOTS_LUZ)
         )
 
     @property
@@ -124,7 +128,7 @@ class NoiteLightingContext(LightingContext):
                 luz.eye_color(),
                 float(luz.eye_range()),
             ))
-        while len(slots) < C.MAX_POINT_LIGHTS:
+        while len(slots) < _MAX_SLOTS_LUZ:
             slots.append(_LUZ_APAGADA)
         self._point_lights_eye = tuple(slots)
 
@@ -146,6 +150,8 @@ class NoiteLightingContext(LightingContext):
         """Reaproveita a ativação base e complementa a atmosfera noturna."""
         super().activate()
         self._enviar_ajustes_noturnos()
+        if self.pcfSamplesLocation != -1:
+            glUniform1i(self.pcfSamplesLocation, C.SHADOW_PCF_SAMPLES)
         _enviar_luzes_pontuais(
             self.pointLightUniforms,
             self._point_lights_eye,
@@ -224,6 +230,10 @@ class NoiteWaterMaterial(WaterMaterial):
             self.lighting.point_lights_eye,
             self.lighting.point_light_count,
         )
+        if self.waterUniforms["u_pcf_samples"] != -1:
+            glUniform1i(self.waterUniforms["u_pcf_samples"], C.SHADOW_PCF_SAMPLES)
+        if self.waterUniforms["u_wave_count"] != -1:
+            glUniform1i(self.waterUniforms["u_wave_count"], C.WATER_WAVE_COUNT)
 
         for index, wave in enumerate(C.WATER_DETAIL_WAVES):
             direction_x, direction_z, amplitude, wave_number, speed = wave
