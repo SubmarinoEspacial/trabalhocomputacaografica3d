@@ -89,7 +89,7 @@ class BeamMaterial:
     def __init__(
         self,
         texture,
-        color=C.BEAM_COLOR,
+        color=C.LIGHT_COLOR,
         intensity=C.BEAM_OUTER_ALPHA,
         height=2.5,
         radius_bottom=1.35,
@@ -123,7 +123,8 @@ class BeamMaterial:
         """Desenha o feixe com blending aditivo e textura de ruído animada."""
         glUseProgram(self.program)
         uniform = self.uniforms
-        glUniform3f(uniform["u_beam_color"], *self.color)
+        # BEAM_INTENSITY empurra a cor acima de 1.0 antes do tone mapping exponencial.
+        glUniform3f(uniform["u_beam_color"], *(c * C.BEAM_INTENSITY for c in self.color))
         glUniform1f(uniform["u_intensity"], self.intensity)
         glUniform1f(uniform["u_time"], self.time)
         glUniform1f(uniform["u_height"], self.height)
@@ -149,7 +150,7 @@ class ImpactRingMaterial:
     transparent = True
     casts_shadow = False
 
-    def __init__(self, color=C.IMPACT_RING_COLOR, amount=0.0):
+    def __init__(self, color=C.LIGHT_COLOR, amount=0.0):
         self.color = tuple(color)
         self.amount = float(amount)
         self.time = 0.0
@@ -169,7 +170,7 @@ class ImpactRingMaterial:
         """Desenha o anel com blending aditivo sobre a água."""
         glUseProgram(self.program)
         uniform = self.uniforms
-        glUniform3f(uniform["u_impact_color"], *self.color)
+        glUniform3f(uniform["u_impact_color"], *(c * C.BEAM_INTENSITY for c in self.color))
         glUniform1f(uniform["u_amount"], self.amount)
         glUniform1f(uniform["u_time"], self.time)
         glUniform1f(uniform["u_exposure"], C.EXPOSURE)

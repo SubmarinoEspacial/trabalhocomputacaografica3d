@@ -19,9 +19,12 @@ from OpenGL.GL import (
     glUniform4f,
 )
 
+import math
+
 from core.texture import Texture
 from light.shadow_map import _camera_view_matrix
 from material.lambert import LambertMaterial, LightingContext
+from material.phong import PhongMaterial
 from material.water import WaterMaterial
 from src import config as C
 
@@ -159,6 +162,38 @@ class NoiteLightingContext(LightingContext):
         )
 
 
+
+def _direcao_fill_no_espaco_visual(lighting):
+    """Converte PRESENT_FILL_SOURCE (mundo) para o espaço do olho, como a lua."""
+    fonte = C.PRESENT_FILL_SOURCE
+    norma = math.sqrt(sum(componente * componente for componente in fonte)) or 1.0
+    normalizada = tuple(componente / norma for componente in fonte)
+    return lighting._direcao_no_espaco_visual(normalizada)
+
+
+class _VeiculoPresentMixin:
+    """Envia os uniforms do modo apresentação (só usado nos veículos)."""
+
+    def _enviar_apresentacao(self):
+        lighting = self.lighting
+        # No passe de sombra (depth_pass) não há programa de material ativo.
+        if getattr(lighting, "depth_pass", False):
+            return
+        uni = lighting.uniforms
+        glUniform1i(uni["u_present_mode"], int(C.PRESENT_MODE))
+        glUniform3f(uni["u_present_ambient_top"], *C.PRESENT_AMBIENT_TOP)
+        glUniform3f(uni["u_present_ambient_bottom"], *C.PRESENT_AMBIENT_BOTTOM)
+        glUniform1f(uni["u_present_ambient"], C.PRESENT_AMBIENT)
+        glUniform3f(uni["u_present_fill_dir"], *_direcao_fill_no_espaco_visual(lighting))
+        glUniform3f(uni["u_present_fill_color"], *C.PRESENT_FILL_COLOR)
+        glUniform1f(uni["u_present_fill"], C.PRESENT_FILL)
+        glUniform3f(uni["u_present_rim_color"], *C.PRESENT_RIM_COLOR)
+        glUniform1f(uni["u_present_rim"], C.PRESENT_RIM)
+        glUniform1f(uni["u_present_rim_power"], C.PRESENT_RIM_POWER)
+        glUniform1f(uni["u_present_fog_factor"], C.PRESENT_FOG_FACTOR)
+        glUniform1f(uni["u_vehicle_exposure"], C.PRESENT_VEHICLE_EXPOSURE)
+
+
 class TexturedPhongMaterial(LambertMaterial):
     """Combina uma textura repetível com o especular do material Phong."""
 
@@ -195,6 +230,22 @@ class TexturedPhongMaterial(LambertMaterial):
             casts_shadow=casts_shadow,
         )
 
+
+
+class VehiclePhongMaterial(_VeiculoPresentMixin, PhongMaterial):
+    """PhongMaterial com modo apresentação: realça a forma dos veículos."""
+
+    def apply(self):
+        super().apply()
+        self._enviar_apresentacao()
+
+
+class VehicleTexturedPhongMaterial(_VeiculoPresentMixin, TexturedPhongMaterial):
+    """TexturedPhongMaterial com o mesmo modo apresentação dos veículos."""
+
+    def apply(self):
+        super().apply()
+        self._enviar_apresentacao()
 
 class NoiteWaterMaterial(WaterMaterial):
     """Água que compartilha exposição/gamma/neblina com os demais materiais."""

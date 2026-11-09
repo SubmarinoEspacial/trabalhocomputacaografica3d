@@ -93,16 +93,18 @@ FOG_COLOR = SKY_HORIZON_COLOR
 FOG_START = 28.0
 FOG_END = 125.0
 FOG_DENSITY = 0.018
-EXPOSURE = 1.45
-GAMMA = 1.25
-POST_BLOOM_STRENGTH = 0.62
-POST_BLOOM_THRESHOLD = 0.66
+EXPOSURE = 1.20
+GAMMA = 1.20
+POST_BLOOM_STRENGTH = 0.72
+POST_BLOOM_THRESHOLD = 0.60
 POST_VIGNETTE_STRENGTH = 0.55
 POST_COOL_TINT = (0.72, 0.88, 1.25)
 
-# Janela e quadros
-WINDOW_WIDTH = 960
-WINDOW_HEIGHT = 540
+# Janela e quadros; o tamanho inicial preserva o desempenho da versão anterior.
+WINDOW_SIZE = (960, 540)
+MIN_WINDOW_SIZE = (640, 360)
+# Escala do render interno em tela cheia: 1.0 = nativa, 0.75/0.5 = menos pixels.
+RENDER_SCALE = 1.0
 FRAME_LIMIT = 60
 
 # Mar aberto
@@ -130,6 +132,50 @@ WATER_FOAM_STRENGTH = 0.48
 FOAM_COLOR = (0.72, 0.84, 0.92)
 FOAM_CONTACT_ALPHA = 0.62
 FOAM_WAKE_ALPHA = 0.34
+
+# Luzes emissivas centralizadas: cor branca única e intensidades à parte.
+LIGHT_COLOR = [1.0, 1.0, 1.0]    # branco; glUniform aceita lista e LambertMaterial converte em tupla
+LIGHT_INTENSITY = 3.0            # multiplica as emissões (emissiveStrength); >1 estoura de forma suave
+BEAM_INTENSITY = 2.4             # multiplica a cor do feixe e do anel de impacto
+HALO_INTENSITY = 1.5             # emissiveStrength do casco do submarino durante a abdução
+POINTLIGHT_INTENSITY = 1.7       # multiplica a força das PointLights dinâmicas
+# True: bombordo vermelha e boreste verde (realismo). False: tudo branco.
+NAV_LIGHTS_COLORED = True
+NAV_BOMBORDO_COLOR = (1.0, 0.06, 0.025)
+NAV_BORESTE_COLOR = (0.04, 1.0, 0.30)
+
+# Cores dos veículos (pintura): centralizadas para ajuste fino.
+SUB_COLOR_CASCO = (0.35, 0.42, 0.52)        # cinza-azulado médio
+SUB_COLOR_CASCO_TEX = (0.72, 0.79, 0.89)    # tom da textura pintada (convés e chapas)
+SUB_COLOR_TORRE = (0.30, 0.37, 0.47)        # torre um tom abaixo do casco
+SUB_COLOR_FAIXA = (0.20, 0.26, 0.34)        # linha d'água e faixas de emenda
+SUB_COLOR_METAL = (0.50, 0.55, 0.61)        # ferragens e corrimãos
+SUB_COLOR_LATAO = (0.52, 0.42, 0.19)        # latão dos aros e torretas
+SUB_COLOR_BORRACHA = (0.09, 0.11, 0.13)     # linha de flutuação/separadores
+SUB_COLOR_HELICE = (0.52, 0.36, 0.13)       # hélice bronzeada
+
+DISC_COLOR_CASCO = (0.65, 0.68, 0.75)       # casco prateado claro
+DISC_COLOR_CASCO_ESCURO = (0.40, 0.44, 0.51)  # barriga e camadas inferiores
+DISC_COLOR_PAINEL = (0.55, 0.58, 0.66)      # painéis um pouco mais escuros que o casco
+DISC_COLOR_METAL = (0.72, 0.74, 0.78)       # aro metálico e antena
+DISC_COLOR_LATAO = (0.55, 0.45, 0.20)       # aro da base e emissor
+DISC_COLOR_DOMO = (0.30, 0.40, 0.58)        # cúpula de vidro azulada translúcida
+DISC_COLOR_COCKPIT = (0.10, 0.28, 0.38)     # cabine interna sob o domo
+
+# Modo apresentação (só veículos): realça a forma sem clarear o cenário.
+# L liga/desliga em tempo de execução; nenhum objeto de luz/passe novo é criado.
+PRESENT_MODE = 1
+PRESENT_AMBIENT_TOP = (0.30, 0.38, 0.55)    # céu claro no zênite
+PRESENT_AMBIENT_BOTTOM = (0.08, 0.12, 0.20)  # mar escuro no nadir
+PRESENT_AMBIENT = 0.9                       # intensidade do ambiente hemisférico
+PRESENT_FILL_SOURCE = (0.35, 0.42, 1.0)     # direção PARA a fonte (oposto à lua, lado da câmera)
+PRESENT_FILL_COLOR = (0.42, 0.50, 0.62)     # azul frio e fraco
+PRESENT_FILL = 0.55                         # intensidade do preenchimento (sem sombra)
+PRESENT_RIM_COLOR = (0.75, 0.82, 0.95)      # azul-prateado do contorno
+PRESENT_RIM = 0.9                           # intensidade do rim/Fresnel
+PRESENT_RIM_POWER = 3.0                     # potência do Fresnel (maior = mais fino)
+PRESENT_FOG_FACTOR = 0.3                    # neblina 70% mais fraca nos veículos
+PRESENT_VEHICLE_EXPOSURE = 1.15             # exposição extra só dos veículos
 
 # Lua e iluminação noturna
 # A direção é a dos raios; a lua visível fica no sentido oposto, à frente da câmera.
@@ -160,7 +206,6 @@ EMERGE_TIME = 3.2
 EMERGE_PITCH = 12.0         # graus, nariz inclinado ao romper a água
 SURFACE_ROLL_FACTOR = 0.65
 DETECTION_APPROACH_RADIUS = 10.0
-SUB_GLOW_COLOR = (0.12, 0.72, 1.0)
 GLOW_RISE_TIME = 1.5
 GLOW_PULSE_AMPLITUDE = 0.16
 GLOW_PULSE_FREQUENCY = 3.0
@@ -175,34 +220,20 @@ DISC_HOVER_FREQ = 2.0
 DISC_HEIGHT_OVER_SUB = 7.5
 DISC_HOVER_RADIUS = 0.2
 RING_SPEED = 2.0            # rad/s
-DISC_LIGHT_COLORS = (
-	(1.0, 0.10, 0.04),
-	(0.06, 1.0, 0.28),
-	(0.10, 0.46, 1.0),
-	(1.0, 0.68, 0.08),
-	(0.82, 0.92, 1.0),
-)
-BEAM_COLOR = (0.30, 0.72, 1.0)
-BEAM_CORE_COLOR = (0.85, 0.97, 1.0)
-BEAM_OUTER_ALPHA = 0.62
-BEAM_CORE_ALPHA = 0.88
+BEAM_OUTER_ALPHA = 0.72
+BEAM_CORE_ALPHA = 0.95
 
 # Luzes pontuais dinâmicas (máximo efetivo vem do perfil de qualidade)
-SUB_PORTHOLE_LIGHT_COLOR = (1.0, 0.58, 0.20)
 SUB_PORTHOLE_LIGHT_STRENGTH = 1.45
 SUB_PORTHOLE_LIGHT_RANGE = 6.5
-SUB_SEARCHLIGHT_COLOR = (0.40, 0.78, 1.0)
 SUB_SEARCHLIGHT_STRENGTH = 1.70
 SUB_SEARCHLIGHT_RANGE = 10.0
-UFO_GLOW_LIGHT_COLOR = (0.20, 0.58, 1.0)
 UFO_GLOW_LIGHT_STRENGTH = 1.15
 UFO_GLOW_LIGHT_RANGE = 9.0
-UFO_BEAM_LIGHT_COLOR = (0.35, 0.80, 1.0)
 UFO_BEAM_LIGHT_STRENGTH = 3.20
 UFO_BEAM_LIGHT_RANGE = 15.0
 
 # Anel de impacto do feixe na superfície
-IMPACT_RING_COLOR = (0.33, 0.80, 1.0)
 IMPACT_RING_SIZE = 6.0
 IMPACT_RING_ALPHA = 0.90
 

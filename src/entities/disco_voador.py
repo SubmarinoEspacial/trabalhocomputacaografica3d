@@ -7,10 +7,9 @@ from core.mesh import Mesh
 from core.object3d import Object3D
 from core.texture import Texture
 from geometry.primitives import BoxGeometry, ConeGeometry, CylinderGeometry, SphereGeometry
-from material.phong import PhongMaterial
 from src import config as C
 from src.environment.effects import BeamMaterial
-from src.environment.night_materials import TexturedPhongMaterial
+from src.environment.night_materials import VehiclePhongMaterial, VehicleTexturedPhongMaterial
 
 
 class DiscoVoador:
@@ -48,81 +47,82 @@ class DiscoVoador:
         self._panelTexture = textura_paineis
         self._beamTexture = textura_feixe
 
-        casco = PhongMaterial(
+        casco = VehiclePhongMaterial(
             lighting,
-            (0.17, 0.22, 0.25),
-            specular=(0.72, 0.80, 0.84),
-            shininess=88.0,
+            C.DISC_COLOR_CASCO,
+            specular=(0.85, 0.90, 0.95),
+            shininess=56.0,
         )
-        casco_escuro = PhongMaterial(
+        casco_escuro = VehiclePhongMaterial(
             lighting,
-            (0.065, 0.085, 0.10),
-            specular=(0.34, 0.38, 0.40),
-            shininess=52.0,
+            C.DISC_COLOR_CASCO_ESCURO,
+            specular=(0.50, 0.54, 0.58),
+            shininess=44.0,
         )
-        painel = TexturedPhongMaterial(
+        painel = VehicleTexturedPhongMaterial(
             lighting,
             textura_paineis,
-            color=(0.84, 0.92, 0.98),
+            color=C.DISC_COLOR_PAINEL,
             repeatUV=(1.5, 1.0),
-            specular=(0.48, 0.55, 0.58),
-            shininess=60.0,
+            specular=(0.55, 0.62, 0.66),
+            shininess=48.0,
         )
-        metal = PhongMaterial(
+        metal = VehiclePhongMaterial(
             lighting,
-            (0.44, 0.47, 0.45),
-            specular=(0.86, 0.90, 0.88),
-            shininess=110.0,
+            C.DISC_COLOR_METAL,
+            specular=(0.88, 0.92, 0.90),
+            shininess=80.0,
         )
-        latao = PhongMaterial(
+        latao = VehiclePhongMaterial(
             lighting,
-            (0.42, 0.34, 0.14),
+            C.DISC_COLOR_LATAO,
             specular=(0.90, 0.72, 0.34),
-            shininess=100.0,
+            shininess=72.0,
         )
-        aro_luz = PhongMaterial(
+        aro_luz = VehiclePhongMaterial(
             lighting,
-            (0.02, 0.09, 0.13),
-            emissive=(0.06, 0.42, 0.72),
-            emissiveStrength=0.55,
+            (0.05, 0.12, 0.17),
+            emissive=C.LIGHT_COLOR,
+            emissiveStrength=0.55 * C.LIGHT_INTENSITY,
         )
-        domo = PhongMaterial(
+        domo = VehiclePhongMaterial(
             lighting,
-            (0.035, 0.16, 0.21),
+            C.DISC_COLOR_DOMO,
             specular=(0.90, 0.96, 1.0),
             shininess=140.0,
             alpha=0.62,
-            emissive=(0.03, 0.22, 0.34),
-            emissiveStrength=0.45,
+            emissive=C.LIGHT_COLOR,
+            emissiveStrength=0.45 * C.LIGHT_INTENSITY,
             transparent=True,
             casts_shadow=False,
         )
-        cockpit = PhongMaterial(
+        cockpit = VehiclePhongMaterial(
             lighting,
-            (0.03, 0.17, 0.23),
-            emissive=(0.12, 0.68, 0.92),
-            emissiveStrength=1.35,
+            C.DISC_COLOR_COCKPIT,
+            emissive=C.LIGHT_COLOR,
+            emissiveStrength=1.35 * C.LIGHT_INTENSITY,
         )
 
+        # Um material branco por posição do anel: a fase garante a onda sequencial.
         luzes = []
-        for color in C.DISC_LIGHT_COLORS:
+        for indice in range(max(8, C.DISC_RING_LIGHTS)):
             luzes.append(
-                PhongMaterial(
+                VehiclePhongMaterial(
                     lighting,
-                    tuple(componente * 0.16 for componente in color),
-                    emissive=color,
-                    emissiveStrength=2.0,
+                    (0.16, 0.16, 0.16),
+                    emissive=C.LIGHT_COLOR,
+                    emissiveStrength=2.0 * C.LIGHT_INTENSITY,
                 )
             )
         self._light_materials = tuple(
-            (material, 2.0, indice * 1.37)
+            (material, 2.0 * C.LIGHT_INTENSITY, indice * 1.37)
             for indice, material in enumerate(luzes)
         )
 
         self._beam_materials = (
             BeamMaterial(
                 textura_feixe,
-                color=C.BEAM_COLOR,
+                color=C.LIGHT_COLOR,
                 intensity=0.0,
                 height=2.5,
                 radius_bottom=1.35,
@@ -130,7 +130,7 @@ class DiscoVoador:
             ),
             BeamMaterial(
                 textura_feixe,
-                color=C.BEAM_CORE_COLOR,
+                color=C.LIGHT_COLOR,
                 intensity=0.0,
                 height=2.46,
                 radius_bottom=0.52,
@@ -339,7 +339,10 @@ class DiscoVoador:
         tempo = self.hover_phase / max(C.DISC_HOVER_FREQ, 1e-6)
         for material, base, fase in self._light_materials:
             pulso = 0.90 + 0.10 * math.sin(tempo * 2.4 + fase)
-            material.emissiveStrength = base * pulso + self.beam_amount * 0.35
+            # Em FEIXE/ABDUCAO as luzes sobem junto com o feixe.
+            material.emissiveStrength = (
+                base * pulso + self.beam_amount * 0.5 * C.LIGHT_INTENSITY
+            )
 
         if self.feixe is not None:
             amount = max(0.0, min(1.0, float(self.beam_amount)))

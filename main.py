@@ -13,6 +13,7 @@ from OpenGL.GL import (
     glClearColor,
     glLoadIdentity,
     glMatrixMode,
+    glViewport,
 )
 from OpenGL.GLU import gluPerspective
 
@@ -67,11 +68,8 @@ class Aplicacao(Base):
 
     def initialize(self):
         """Cria a projeção, câmera, entidades e controlador da interação."""
-        glMatrixMode(GL_PROJECTION)
-        glLoadIdentity()
-        # O domo noturno tem raio 185; um far plane de 300 evita recortá-lo.
-        gluPerspective(55.0, self.largura / self.altura, 0.1, 300.0)
-        glMatrixMode(GL_MODELVIEW)
+        self._ultimo_tamanho_janela = (self.largura, self.altura)
+        self._atualizar_projecao(self.largura, self.altura)
         glClearColor(*C.SKY_COLOR)
         self._preparar_perfilamento()
 
@@ -87,9 +85,12 @@ class Aplicacao(Base):
         self._espaco_anterior = False
         self._r_anterior = False
         self._f3_anterior = False
+        self._l_anterior = False
         self._f1_anterior = False
         self._f2_anterior = False
         self._f4_anterior = False
+        self._f11_anterior = False
+        self._alt_enter_anterior = False
         self._frames_perfil = 0
         self._ultima_impressao = time.perf_counter()
         self._acumulos = {
@@ -103,6 +104,51 @@ class Aplicacao(Base):
         self._mesh_draw_principal = 0.0
         self._mesh_draw_sombra = 0.0
         self._atualizar_titulo(False)
+
+    def on_resize(self, largura, altura):
+        """Ajusta viewport, projeção e pós-processamento sem reiniciar a cena."""
+        if largura <= 0 or altura <= 0:
+            return
+        if not pygame.display.is_fullscreen():
+            self._ultimo_tamanho_janela = (largura, altura)
+        self._atualizar_projecao(largura, altura)
+        if hasattr(self, "postprocess"):
+            self.postprocess.resize(largura, altura)
+
+    def on_escape(self):
+        """ESC sai da tela cheia; não fecha a aplicação."""
+        if pygame.display.is_fullscreen():
+            self._alternar_tela_cheia()
+        return False
+
+    def _atualizar_projecao(self, largura, altura):
+        """Recalcula viewport e aspect ratio mantendo o campo vertical."""
+        self.largura = int(largura)
+        self.altura = int(altura)
+        glViewport(0, 0, self.largura, self.altura)
+        glMatrixMode(GL_PROJECTION)
+        glLoadIdentity()
+        # O domo noturno tem raio 185; o far plane de 300 evita recortá-lo.
+        gluPerspective(55.0, self.largura / self.altura, 0.1, 300.0)
+        glMatrixMode(GL_MODELVIEW)
+
+    def _alternar_tela_cheia(self):
+        """Alterna F11/Alt+Enter sem recriar recursos de GPU."""
+        estava_cheia = pygame.display.is_fullscreen()
+        if not estava_cheia:
+            # Guarda exatamente o tamanho atual para restaurar ao sair.
+            self._ultimo_tamanho_janela = (self.largura, self.altura)
+
+        # Em SDL/Linux, toggle_fullscreen preserva a janela e o contexto OpenGL.
+        pygame.display.toggle_fullscreen()
+        largura, altura = pygame.display.get_window_size()
+
+        if estava_cheia:
+            # O SDL deveria restaurar a janela; se não o fizer, não recriamos a GPU.
+            if (largura, altura) != self._ultimo_tamanho_janela:
+                self.largura, self.altura = largura, altura
+        self.largura, self.altura = int(largura), int(altura)
+        self.on_resize(self.largura, self.altura)
 
     def _criar_sombra(self):
         """Cria a sombra lunar usando a resolução do perfil atual."""
@@ -267,6 +313,7 @@ class Aplicacao(Base):
         brilho_sub = min(1.0, escala * 1.4) * (0.70 + 0.30 * sub.glow)
         altura_disco = disco.position[1] + disco.hover_offset
 
+        # Cores brancas centralizadas em LIGHT_COLOR; a força sobe com POINTLIGHT_INTENSITY.
         luzes = (
             PointLight(
                 (
@@ -274,8 +321,8 @@ class Aplicacao(Base):
                     sub.position[1] + 0.30 * escala,
                     sub.position[2] + frente_z * 0.10 * escala,
                 ),
-                C.SUB_PORTHOLE_LIGHT_COLOR,
-                C.SUB_PORTHOLE_LIGHT_STRENGTH * brilho_sub,
+                C.LIGHT_COLOR,
+                C.SUB_PORTHOLE_LIGHT_STRENGTH * C.POINTLIGHT_INTENSITY * brilho_sub,
                 C.SUB_PORTHOLE_LIGHT_RANGE,
                 enabled=sub.visible and brilho_sub > 0.02,
             ),
@@ -285,8 +332,8 @@ class Aplicacao(Base):
                     altura_disco - 1.35 * C.DISC_SCALE,
                     disco.position[2],
                 ),
-                C.UFO_BEAM_LIGHT_COLOR,
-                C.UFO_BEAM_LIGHT_STRENGTH * disco.beam_amount,
+                C.LIGHT_COLOR,
+                C.UFO_BEAM_LIGHT_STRENGTH * C.POINTLIGHT_INTENSITY * disco.beam_amount,
                 C.UFO_BEAM_LIGHT_RANGE,
                 enabled=disco.beam_amount > 0.01,
             ),
@@ -296,8 +343,8 @@ class Aplicacao(Base):
                     altura_disco + 0.10 * C.DISC_SCALE,
                     disco.position[2],
                 ),
-                C.UFO_GLOW_LIGHT_COLOR,
-                C.UFO_GLOW_LIGHT_STRENGTH,
+                C.LIGHT_COLOR,
+                C.UFO_GLOW_LIGHT_STRENGTH * C.POINTLIGHT_INTENSITY,
                 C.UFO_GLOW_LIGHT_RANGE,
                 enabled=disco.root is not None and disco.root.visible,
             ),
@@ -307,8 +354,8 @@ class Aplicacao(Base):
                     sub.position[1] + 1.05 * escala,
                     sub.position[2] + frente_z * 0.90 * escala,
                 ),
-                C.SUB_SEARCHLIGHT_COLOR,
-                C.SUB_SEARCHLIGHT_STRENGTH * brilho_sub,
+                C.LIGHT_COLOR,
+                C.SUB_SEARCHLIGHT_STRENGTH * C.POINTLIGHT_INTENSITY * brilho_sub,
                 C.SUB_SEARCHLIGHT_RANGE,
                 enabled=sub.visible and escala > 0.15,
             ),
@@ -319,6 +366,9 @@ class Aplicacao(Base):
         """Atualiza controles e cena; renderiza mesmo quando a animação pausa."""
         # O delta real limita os saltos da animação se a máquina perder quadros.
         delta_quadro = min(self.deltaTime, 0.05)
+        if self.largura <= 0 or self.altura <= 0:
+            # Janela minimizada: mantemos o loop e o pausa, mas não desenhamos.
+            return
         teclas = pygame.key.get_pressed()
         inicio_frame = time.perf_counter()
 
@@ -331,6 +381,13 @@ class Aplicacao(Base):
         if r_pressionado and not self._r_anterior:
             self.controlador.reset()
         self._r_anterior = r_pressionado
+
+        l_pressionado = bool(teclas[pygame.K_l])
+        if l_pressionado and not self._l_anterior:
+            C.PRESENT_MODE = 0 if C.PRESENT_MODE else 1
+            estado = "ligado" if C.PRESENT_MODE else "desligado"
+            print(f"Modo apresentação dos veículos: {estado} (L alterna)", flush=True)
+        self._l_anterior = l_pressionado
 
         f3_pressionado = bool(teclas[pygame.K_F3])
         if f3_pressionado and not self._f3_anterior:
@@ -353,6 +410,18 @@ class Aplicacao(Base):
         if f4_pressionado and not self._f4_anterior:
             self._trocar_perfil_qualidade("alta")
         self._f4_anterior = f4_pressionado
+
+        f11_pressionado = bool(teclas[pygame.K_F11])
+        if f11_pressionado and not self._f11_anterior:
+            self._alternar_tela_cheia()
+        self._f11_anterior = f11_pressionado
+
+        alt_pressionado = bool(pygame.key.get_mods() & pygame.KMOD_ALT)
+        enter_pressionado = bool(teclas[pygame.K_RETURN] or teclas[pygame.K_KP_ENTER])
+        alt_enter_pressionado = alt_pressionado and enter_pressionado
+        if alt_enter_pressionado and not self._alt_enter_anterior:
+            self._alternar_tela_cheia()
+        self._alt_enter_anterior = alt_enter_pressionado
 
         # A câmera usa o tempo do quadro, inclusive enquanto a cena está pausada.
         self.camera_rig.update(delta_quadro, teclas)
@@ -407,7 +476,8 @@ class Aplicacao(Base):
 
 if __name__ == "__main__":
     Aplicacao(
-        largura=C.WINDOW_WIDTH,
-        altura=C.WINDOW_HEIGHT,
+        largura=C.WINDOW_SIZE[0],
+        altura=C.WINDOW_SIZE[1],
         titulo="Validacao OpenGL",
+        tamanho_minimo=C.MIN_WINDOW_SIZE,
     )

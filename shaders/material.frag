@@ -33,6 +33,22 @@ uniform float u_fog_density;
 // Exposição e gamma finais aproximam a cena noturna do comportamento de uma câmera.
 uniform float u_exposure;
 uniform float u_gamma;
+// Modo apresentação dos veículos: iluminação sem sombras nova, desligado com 0.
+// u_present_fill_dir vem no espaço do olho (direção ATÉ a fonte), como a luz da lua.
+uniform int u_present_mode;
+uniform vec3 u_present_ambient_top;
+uniform vec3 u_present_ambient_bottom;
+uniform float u_present_ambient;
+uniform vec3 u_present_fill_dir;
+uniform vec3 u_present_fill_color;
+uniform float u_present_fill;
+uniform vec3 u_present_rim_color;
+uniform float u_present_rim;
+uniform float u_present_rim_power;
+// u_present_fog_factor enfraquece a densidade da neblina só nos veículos.
+uniform float u_present_fog_factor;
+// Exposição extra dos veículos; o resto do cenário continua no u_exposure global.
+uniform float u_vehicle_exposure;
 // Quatro luzes pontuais dinâmicas: posição/cor no espaço do olho e alcance no mundo.
 uniform int u_point_light_count;
 uniform vec3 u_point_light_position_eye[4];
@@ -42,6 +58,7 @@ varying vec3 v_normal_eye;
 varying vec3 v_position_eye;
 varying vec2 v_uv;
 varying vec4 v_shadow_position;
+varying vec3 v_normal_world;
 
 // Compara a profundidade atual com a amostrada pela luz; usada por todos os PCF.
 float comparar_profundidade(vec2 uv, float z, float bias) {
@@ -124,9 +141,26 @@ void main() {
         }
     }
 
-    vec3 ambientTerm = baseColor * u_light_ambient;
-    vec3 directTerm = baseColor * diffuse + u_material_specular * specular;
-    vec3 color = ambientTerm + u_light_diffuse * directTerm * (1.0 - 0.72 * shadow);
+    vec3 ambientTerm;
+    if (u_present_mode != 0) {
+        // Ambiente hemisférico: interpola céu/mar pela componente Y da normal do mundo.
+        float hemi = clamp(v_normal_world.y * 0.5 + 0.5, 0.0, 1.0);
+        vec3 hemiColor = mix(u_present_ambient_bottom, u_present_ambient_top, hemi);
+        ambientTerm = baseColor * hemiColor * u_present_ambient;
+    } else {
+        ambientTerm = baseColor * u_light_ambient;
+    }
+
+    vec3 color = ambientTerm + u_light_diffuse * (baseColor * diffuse + u_material_specular * specular) * (1.0 - 0.72 * shadow);
+
+    if (u_present_mode != 0) {
+        // Preenchimento frio do lado oposto à lua: sem sombra, sem objeto de luz novo.
+        float ndlFill = max(dot(normal, u_present_fill_dir), 0.0);
+        color += baseColor * u_present_fill_color * (ndlFill * u_present_fill);
+        // Rim/Fresnel: destaca a silhueta contra o céu e o mar.
+        float fresnel = pow(1.0 - max(dot(normal, viewDirection), 0.0), max(u_present_rim_power, 0.1));
+        color += u_present_rim_color * fresnel * u_present_rim;
+    }
 
     // As luzes pontuais não projetam sombra, mas iluminam casco, disco e detalhes.
     vec3 pointDiffuse = vec3(0.0);
@@ -166,12 +200,20 @@ void main() {
     // exponencial, que fecha o horizonte noturno sem apagar os objetos próximos.
     float distancia = length(v_position_eye);
     float neblinaLinear = smoothstep(u_fog_start, u_fog_end, distancia);
-    float neblinaDensa = 1.0 - exp(-pow(u_fog_density * distancia, 2.0));
+    // Nos veículos, a densidade da neblina exponencial cai para PRESENT_FOG_FACTOR.
+    float densidade = u_fog_density * (u_present_mode != 0 ? u_present_fog_factor : 1.0);
+    float neblinaDensa = 1.0 - exp(-pow(densidade * distancia, 2.0));
     float fogAmount = clamp(max(neblinaLinear, neblinaDensa), 0.0, 1.0);
     color = mix(color, u_fog_color, fogAmount);
 
-    // Tone mapping exponencial evita saturação e o gamma clareia as meias-luzes.
-    vec3 mapped = vec3(1.0) - exp(-max(color, vec3(0.0)) * u_exposure);
+    // Vehículos: Reinhard simples (cor / (cor + 1)) com exposição própria; cenário: 1-exp.
+    vec3 mapped;
+    if (u_present_mode != 0) {
+        vec3 v = max(color, vec3(0.0)) * u_vehicle_exposure;
+        mapped = v / (v + vec3(1.0));
+    } else {
+        mapped = vec3(1.0) - exp(-max(color, vec3(0.0)) * u_exposure);
+    }
     gl_FragColor = vec4(
         pow(mapped, vec3(1.0 / max(u_gamma, 0.001))),
         u_material_alpha

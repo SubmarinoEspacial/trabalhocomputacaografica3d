@@ -32,6 +32,9 @@ from OpenGL.GL import (
     glCheckFramebufferStatus,
     glClear,
     glClearColor,
+    glDeleteFramebuffers,
+    glDeleteRenderbuffers,
+    glDeleteTextures,
     glDisable,
     glDrawBuffer,
     glEnable,
@@ -135,6 +138,12 @@ class ColorRenderTarget:
         """Volta a desenhar no framebuffer padrão da janela."""
         glBindFramebuffer(GL_FRAMEBUFFER, 0)
 
+    def release(self):
+        """Libera FBO, textura e depth buffer ao trocar a resolução."""
+        glDeleteFramebuffers(1, [self.framebuffer])
+        glDeleteTextures(1, [self.color_texture])
+        glDeleteRenderbuffers(1, [self.depth_buffer])
+
 
 class PostProcessMaterial:
     """Shader de tela cheia que aplica bloom e grade frio à cena."""
@@ -171,6 +180,11 @@ class PostProcessMaterial:
         """Desativa o programa após o quad de tela cheia."""
         glUseProgram(0)
 
+    def update_texel_size(self, width, height):
+        """Atualiza o tamanho usado para espalhar o bloom após um resize."""
+        self.texel_width = 1.0 / float(max(1, width))
+        self.texel_height = 1.0 / float(max(1, height))
+
 
 class PostProcess:
     """Renderiza a cena em textura e depois aplica o passe cinematográfico."""
@@ -178,8 +192,21 @@ class PostProcess:
     def __init__(self, width, height):
         self.width = int(width)
         self.height = int(height)
-        self.target = ColorRenderTarget(self.width, self.height)
-        self.material = PostProcessMaterial(self.width, self.height)
+        self.render_scale = min(1.0, max(0.1, float(C.RENDER_SCALE)))
+        self.target_width = max(1, int(round(self.width * self.render_scale)))
+        self.target_height = max(1, int(round(self.height * self.render_scale)))
+        self.target = ColorRenderTarget(self.target_width, self.target_height)
+        self.material = PostProcessMaterial(self.target_width, self.target_height)
+
+    def resize(self, width, height):
+        """Recria apenas o framebuffer de cor após resize/tela cheia."""
+        self.width = int(width)
+        self.height = int(height)
+        self.target_width = max(1, int(round(self.width * self.render_scale)))
+        self.target_height = max(1, int(round(self.height * self.render_scale)))
+        self.target.release()
+        self.target = ColorRenderTarget(self.target_width, self.target_height)
+        self.material.update_texel_size(self.target_width, self.target_height)
 
     def begin(self):
         """Inicia o desenho da cena no framebuffer de cor."""

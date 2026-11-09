@@ -9,10 +9,20 @@
 Mar aberto noturno com lua, estrelas, neblina no horizonte, ondas procedurais,
 espuma e sombras projetadas na água. O submarino navega submerso, emerge com
 brilho emissivo, é detectado pelo disco voador, inspecionado em órbita, iluminado
-por um feixe e abduzido. O disco tem luzes coloridas, luzes pontuais dinâmicas e
+por um feixe e abduzido. O disco tem luzes emissivas brancas e brilhantes, luzes pontuais dinâmicas brancas e
 um anel de impacto na superfície; o passe final aplica bloom e vinheta. Ao final,
 a cena reinicia.
 Sequência: Submerso, Emergindo, Detecção, Posicionamento, Inspeção, Feixe, Abdução, Final.
+
+### Iluminação e modo apresentação
+A cena é noturna, com lua direcional, luz ambiente fria e shadow mapping. Os veículos usam, por
+padrão, um modo apresentação (`PRESENT_MODE = 1`): ambiente hemisférico (céu→mar), luz de
+preenchimento fria sem sombra do lado oposto à lua, contorno Fresnel azul-prateado e neblina
+atenuada nos veículos; o tone mapping dos veículos é Reinhard (`cor / (cor + 1)`) com exposição
+própria (`PRESENT_VEHICLE_EXPOSURE`), preservando o céu e o mar escuros e as sombras da lua.
+Tudo é cálculo no fragment shader (`shaders/material.frag`), sem objetos de luz ou passes
+adicionais; a areia e o restante do cenário seguem o caminho normal do shader. `L` alterna o
+modo em tempo real. Parâmetros em `src/config.py` (`PRESENT_*` e `SUB_COLOR_*`/`DISC_COLOR_*`).
 
 ## Instalação e execução
 ```
@@ -24,14 +34,27 @@ python main.py
 Teste da máquina de estados (sem OpenGL): `python -m tests.test_abducao`
 
 ## Controles
-W/A/S/D mover, Q/E subir/descer, setas girar, ESPAÇO pausar/retomar, R reiniciar a interação, Esc sair.
+W/A/S/D mover, Q/E subir/descer, setas girar, ESPAÇO pausar/retomar, R reiniciar a interação.
 F1 perfil baixa, F2 perfil media, F4 perfil alta, F3 mostrar/ocultar diagnóstico (FPS e tempos).
+F11 ou Alt+Enter alternam janela/tela cheia; Esc sai da tela cheia e não fecha o programa.
+L liga/desliga o modo apresentação (iluminação de realce somente nos veículos, sem alterar o cenário).
+
+## Janela redimensionável
+A janela é criada com `pygame.RESIZABLE`, aceita arrastar as bordas para aumentar ou diminuir e
+respeita o tamanho mínimo definido em `config.py` (`MIN_WINDOW_SIZE = (640, 360)`). Ao redimensionar,
+a aplicação atualiza `glViewport`, a razão de aspecto em `gluPerspective`, o tamanho do framebuffer de
+pós-processamento e o tamanho guardado na Base. O mapa de sombra não é recriado e permanece com
+tamanho fixo. Tamanho inicial: `WINDOW_SIZE = (960, 540)`. O botão da janela é o único meio de fechar.
+
+Para tela cheia de alto custo, `RENDER_SCALE` (padrão `1.0`) permite renderizar a cena em um
+framebuffer menor e ampliar para a tela inteira; `0.75` ou `0.5` reduzem o custo por pixel sem
+alterar o layout da janela. O mapa de sombra continua independente dessa escala.
 
 ## Desempenho e perfis de qualidade
 O padrão é `media`; também é possível escolher no arranque com `--quality baixa|media|alta`
 (`--qualidade` também funciona). F1/F2/F4 trocam o perfil em tempo real, recriando
 a sombra e a cena com os novos parâmetros e reiniciando a sequência. A janela usa
-960 × 540 por padrão (`WINDOW_WIDTH`/`WINDOW_HEIGHT` em `config.py`). Antes da
+`WINDOW_SIZE` por padrão. Antes da
 sintonia, a cena medida em uma Intel Iris Xe ficou em cerca de 10 FPS; após os cortes,
 `baixa` ficou em torno de 36 FPS e `media` em torno de 29–31 FPS. `alta` preserva a
 qualidade visual anterior (cerca de 12–13 FPS na mesma máquina).

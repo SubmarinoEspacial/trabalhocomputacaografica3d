@@ -7,10 +7,9 @@ from core.mesh import Mesh
 from core.object3d import Object3D
 from core.texture import Texture
 from geometry.primitives import BoxGeometry, CylinderGeometry, SphereGeometry
-from material.phong import PhongMaterial
 from src import config as C
 from src.environment.mar import water_height
-from src.environment.night_materials import TexturedPhongMaterial
+from src.environment.night_materials import VehiclePhongMaterial, VehicleTexturedPhongMaterial
 
 
 class Submarino:
@@ -47,102 +46,108 @@ class Submarino:
         )
         self._hullTexture = textura_casco
 
-        casco = PhongMaterial(
+        casco = VehiclePhongMaterial(
             lighting,
-            (0.045, 0.115, 0.145),
-            specular=(0.36, 0.44, 0.48),
-            shininess=52.0,
-            emissive=C.SUB_GLOW_COLOR,
+            C.SUB_COLOR_CASCO,
+            specular=(0.65, 0.72, 0.80),
+            shininess=38.0,
+            emissive=C.LIGHT_COLOR,
             emissiveStrength=0.0,
         )
-        casco_texturizado = TexturedPhongMaterial(
+        casco_texturizado = VehicleTexturedPhongMaterial(
             lighting,
             textura_casco,
-            color=(0.88, 0.96, 1.0),
+            color=C.SUB_COLOR_CASCO_TEX,
             repeatUV=(2.0, 1.0),
-            specular=(0.30, 0.36, 0.40),
-            shininess=28.0,
-            emissive=C.SUB_GLOW_COLOR,
+            specular=(0.48, 0.55, 0.62),
+            shininess=30.0,
+            emissive=C.LIGHT_COLOR,
             emissiveStrength=0.0,
         )
-        torre = PhongMaterial(
+        torre = VehiclePhongMaterial(
             lighting,
-            (0.055, 0.135, 0.165),
-            specular=(0.34, 0.42, 0.46),
-            shininess=46.0,
-            emissive=C.SUB_GLOW_COLOR,
+            C.SUB_COLOR_TORRE,
+            specular=(0.52, 0.59, 0.65),
+            shininess=38.0,
+            emissive=C.LIGHT_COLOR,
             emissiveStrength=0.0,
         )
-        metal = PhongMaterial(
+        metal = VehiclePhongMaterial(
             lighting,
-            (0.20, 0.25, 0.25),
-            specular=(0.62, 0.66, 0.64),
-            shininess=84.0,
+            C.SUB_COLOR_METAL,
+            specular=(0.66, 0.71, 0.69),
+            shininess=64.0,
         )
-        latao = PhongMaterial(
+        latao = VehiclePhongMaterial(
             lighting,
-            (0.38, 0.30, 0.12),
-            specular=(0.82, 0.68, 0.30),
-            shininess=96.0,
+            C.SUB_COLOR_LATAO,
+            specular=(0.85, 0.72, 0.34),
+            shininess=72.0,
         )
-        borracha = PhongMaterial(
+        borracha = VehiclePhongMaterial(
             lighting,
-            (0.018, 0.024, 0.026),
-            specular=(0.12, 0.13, 0.12),
-            shininess=18.0,
+            C.SUB_COLOR_BORRACHA,
+            specular=(0.22, 0.24, 0.23),
+            shininess=16.0,
         )
-        helice = PhongMaterial(
+        helice = VehiclePhongMaterial(
             lighting,
-            (0.46, 0.31, 0.11),
+            C.SUB_COLOR_HELICE,
             specular=(0.95, 0.80, 0.42),
-            shininess=110.0,
+            shininess=80.0,
         )
-        janela = PhongMaterial(
+        janela = VehiclePhongMaterial(
             lighting,
             (0.010, 0.045, 0.060),
-            emissive=(0.16, 0.62, 0.92),
+            emissive=C.LIGHT_COLOR,
             emissiveStrength=1.5,
         )
-        luz_quente = PhongMaterial(
+        luz_quente = VehiclePhongMaterial(
             lighting,
             (0.08, 0.055, 0.025),
-            emissive=(1.0, 0.63, 0.24),
+            emissive=C.LIGHT_COLOR,
             emissiveStrength=2.0,
         )
-        luz_vermelha = PhongMaterial(
+        # NAV_LIGHTS_COLORED mantém o realismo: bombordo vermelha, boreste verde.
+        cor_nav_vermelha = C.NAV_BOMBORDO_COLOR if C.NAV_LIGHTS_COLORED else C.LIGHT_COLOR
+        cor_nav_verde = C.NAV_BORESTE_COLOR if C.NAV_LIGHTS_COLORED else C.LIGHT_COLOR
+        luz_vermelha = VehiclePhongMaterial(
             lighting,
             (0.10, 0.010, 0.006),
-            emissive=(1.0, 0.06, 0.025),
+            emissive=cor_nav_vermelha,
             emissiveStrength=2.4,
         )
-        luz_verde = PhongMaterial(
+        luz_verde = VehiclePhongMaterial(
             lighting,
             (0.008, 0.09, 0.025),
-            emissive=(0.04, 1.0, 0.30),
+            emissive=cor_nav_verde,
             emissiveStrength=2.4,
         )
-        luz_branca = PhongMaterial(
+        luz_branca = VehiclePhongMaterial(
             lighting,
             (0.12, 0.13, 0.14),
-            emissive=(0.92, 0.97, 1.0),
+            emissive=C.LIGHT_COLOR,
             emissiveStrength=2.0,
         )
-        holofote = PhongMaterial(
+        holofote = VehiclePhongMaterial(
             lighting,
             (0.16, 0.15, 0.12),
-            emissive=(1.0, 0.88, 0.58),
+            emissive=C.LIGHT_COLOR,
             emissiveStrength=2.8,
         )
 
         self._glow_materials = (casco, casco_texturizado, torre, metal, latao, helice)
         # Base das luzes, acréscimo durante a abdução, frequência e fase do pulso.
-        self._night_lights = (
-            (janela, 1.5, 1.2, 1.7, 0.0),
-            (luz_quente, 2.0, 1.0, 2.2, 0.6),
-            (luz_vermelha, 2.4, 1.4, 1.1, 0.0),
-            (luz_verde, 2.4, 1.4, 1.1, math.pi),
-            (luz_branca, 2.0, 1.2, 1.3, 1.2),
-            (holofote, 2.8, 1.8, 0.9, 0.3),
+        self._night_lights = tuple(
+            (material, base * C.LIGHT_INTENSITY, extra * C.LIGHT_INTENSITY, frequencia, fase)
+            for material, base, extra, frequencia, fase in (
+                (janela, 1.5, 1.2, 1.7, 0.0),
+                (luz_quente, 2.0, 1.0, 2.2, 0.6),
+                (luz_vermelha, 2.4, 1.4, 1.1, 0.0),
+                (luz_verde, 2.4, 1.4, 1.1, math.pi),
+                (luz_branca, 2.0, 1.2, 1.3, 1.2),
+                (holofote, 2.8, 1.8, 0.9, 0.3),
+            )
         )
         return {
             "casco": casco,
@@ -193,11 +198,17 @@ class Submarino:
         )
         # Faixas discretas marcam as emendas do casco.
         if C.DETALHES_COMPLETOS:
+            faixa = VehiclePhongMaterial(
+                lighting,
+                C.SUB_COLOR_FAIXA,
+                specular=(0.30, 0.34, 0.40),
+                shininess=24.0,
+            )
             for x in (-1.55, -0.35, 0.85, 1.95):
                 corpo.add(
                     Mesh(
                         CylinderGeometry(0.673, 0.673, 0.055, segments=C.ROUND_SEGMENTS),
-                        m["latao"],
+                        faixa,
                         position=(x, 0.0, 0.0),
                         rotation=(0.0, 0.0, 90.0),
                     )
@@ -465,7 +476,8 @@ class Submarino:
             pulso = 0.94 + 0.06 * math.sin(self.waterTime * frequencia + fase)
             material.emissiveStrength = base * pulso + self.glow * extra
         for material in self._glow_materials:
-            material.emissiveStrength = self.glow * 0.22
+            # HALO_INTENSITY controla o halo do submarino durante a abdução.
+            material.emissiveStrength = self.glow * C.HALO_INTENSITY
 
     def apply(self, animationTime=None):
         """Copia o estado de animação para as transformações do modelo."""

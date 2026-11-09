@@ -33,6 +33,7 @@ from OpenGL.GL import (
     glUniform1i,
     glUniform2f,
     glUniform3f,
+    glUniformMatrix3fv,
     glUniformMatrix4fv,
     glUseProgram,
 )
@@ -64,6 +65,20 @@ class LightingContext:
         "u_fog_color",
         "u_fog_start",
         "u_fog_end",
+        # Uniforms do modo apresentação dos veículos (padrão seguro: desligado).
+        "u_view_transpose",
+        "u_present_mode",
+        "u_present_ambient_top",
+        "u_present_ambient_bottom",
+        "u_present_ambient",
+        "u_present_fill_dir",
+        "u_present_fill_color",
+        "u_present_fill",
+        "u_present_rim_color",
+        "u_present_rim",
+        "u_present_rim_power",
+        "u_present_fog_factor",
+        "u_vehicle_exposure",
     )
 
     def __init__(self, light, ambientLight=None, fogColor=(0.52, 0.78, 0.92), fogStart=32.0, fogEnd=110.0):
@@ -170,11 +185,32 @@ class LightingContext:
         """Alias camelCase para finalizar o primeiro passe."""
         self.end_depth_pass()
 
-    def _direcao_no_espaco_visual(self):
+    @staticmethod
+    def _matriz_transposta_mundo_olho(yaw_graus, pitch_graus):
+        """Devolve Vᵀ (3x3) em coluna-major para devolver normais do olho ao mundo.
+
+        A câmera aplica V = Rx(-pitch)·Ry(-yaw); a transposta troca os sinais,
+        então Vᵀ = Ry(yaw)·Rx(pitch). Como (AB)ᵀ = BᵀAᵀ e toda rotação é
+        ortogonal, Vᵀ é exatamente a rotação inversa da visão.
+        """
+        yaw = math.radians(yaw_graus)
+        pitch = math.radians(pitch_graus)
+        cy, sy = math.cos(yaw), math.sin(yaw)
+        cp, sp = math.cos(pitch), math.sin(pitch)
+        # Linhas de Vᵀ = Ry(yaw)·Rx(pitch).
+        linhas = (
+            (cy, sy * sp, sy * cp),
+            (0.0, cp, -sp),
+            (-sy, cy * sp, cy * cp),
+        )
+        # glUniformMatrix3fv(GL_FALSE) espera ordem coluna-major.
+        return tuple(linhas[j][i] for i in range(3) for j in range(3))
+
+    def _direcao_no_espaco_visual(self, direcao=None):
         """Transforma a direção mundial pelo giro inverso aplicado à câmera."""
         yaw = math.radians(-self.yaw_camera)
         pitch = math.radians(-self.pitch_camera)
-        dx, dy, dz = self.light.direction
+        dx, dy, dz = direcao if direcao is not None else self.light.direction
 
         x_yaw = math.cos(yaw) * dx + math.sin(yaw) * dz
         y_yaw = dy
@@ -205,6 +241,10 @@ class LightingContext:
         else:
             matrix = self.shadow_matrix_eye.astype("float32").flatten(order="F")
         glUniformMatrix4fv(self.uniforms["u_light_view_projection_eye"], 1, GL_FALSE, matrix)
+        glUniformMatrix3fv(
+            self.uniforms["u_view_transpose"], 1, GL_FALSE,
+            self._matriz_transposta_mundo_olho(self.yaw_camera, self.pitch_camera),
+        )
         glUniform1i(
             self.uniforms["u_shadow_enabled"],
             int(self.shadow_texture != 0 and self.receiveShadow),
@@ -271,6 +311,20 @@ class LambertMaterial:
         glUniform2f(self.lighting.uniforms["offsetUV"], *self.offsetUV)
         glUniform3f(self.lighting.uniforms["u_material_specular"], *self.specular)
         glUniform1f(self.lighting.uniforms["u_material_shininess"], self.shininess)
+        # Modo apresentação desligado por padrão; os veículos enviam PRESENT_*.
+        uni = self.lighting.uniforms
+        glUniform1i(uni["u_present_mode"], 0)
+        glUniform3f(uni["u_present_ambient_top"], 0.16, 0.17, 0.19)
+        glUniform3f(uni["u_present_ambient_bottom"], 0.16, 0.17, 0.19)
+        glUniform1f(uni["u_present_ambient"], 1.0)
+        glUniform3f(uni["u_present_fill_dir"], 0.0, 0.0, 1.0)
+        glUniform3f(uni["u_present_fill_color"], 0.0, 0.0, 0.0)
+        glUniform1f(uni["u_present_fill"], 0.0)
+        glUniform3f(uni["u_present_rim_color"], 0.0, 0.0, 0.0)
+        glUniform1f(uni["u_present_rim"], 0.0)
+        glUniform1f(uni["u_present_rim_power"], 4.0)
+        glUniform1f(uni["u_present_fog_factor"], 1.0)
+        glUniform1f(uni["u_vehicle_exposure"], 1.0)
         usa_textura = self.texture_id is not None
         glUniform1i(self.lighting.uniforms["u_use_texture"], int(usa_textura))
         glUniform1i(self.lighting.uniforms["u_texture"], 0)
