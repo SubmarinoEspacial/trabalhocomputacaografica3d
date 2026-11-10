@@ -99,6 +99,9 @@ class LightingContext:
         self.uniforms = {
             nome: glGetUniformLocation(self.program, nome) for nome in self._UNIFORMS
         }
+        # Cache "dirty": luz, câmera, sombra e névoa são iguais para todos os
+        # materiais do mesmo quadro. Sem isto, cada Mesh reenviava ~20 uniforms.
+        self._uniformes_compartilhados_sujos = True
 
     @staticmethod
     def _compilar(tipo, fonte):
@@ -140,6 +143,7 @@ class LightingContext:
         """Mantém a direção da luz no mesmo espaço visual que as normais."""
         self.yaw_camera = yaw_degrees
         self.pitch_camera = pitch_degrees
+        self._uniformes_compartilhados_sujos = True
 
     def setCameraRotation(self, yawDegrees, pitchDegrees):
         """Alias camelCase para a orientação da câmera usada pela luz."""
@@ -150,6 +154,7 @@ class LightingContext:
         self.shadow_texture = texture_id
         self.shadow_size = size
         self.shadow_bias = bias
+        self._uniformes_compartilhados_sujos = True
 
     def setShadowMap(self, textureID, size, bias):
         """Alias camelCase para associar a textura de profundidade."""
@@ -158,6 +163,7 @@ class LightingContext:
     def set_shadow_matrix(self, matrix_eye):
         """Atualiza a matriz que leva coordenadas do olho ao clip da luz."""
         self.shadow_matrix_eye = matrix_eye
+        self._uniformes_compartilhados_sujos = True
 
     def setShadowMatrix(self, matrixEye):
         """Alias camelCase para atualizar a matriz da luz."""
@@ -221,9 +227,8 @@ class LightingContext:
         comprimento = math.sqrt(x_eye * x_eye + y_eye * y_eye + z_eye * z_eye)
         return (x_eye / comprimento, y_eye / comprimento, z_eye / comprimento)
 
-    def activate(self):
-        """Seleciona o programa e envia os uniforms da fonte de luz única."""
-        glUseProgram(self.program)
+    def _enviar_uniforms_compartilhados(self):
+        """Envia luz/câmera/sombra/nevoa uma vez por quadro, não por material."""
         direcao = self._direcao_no_espaco_visual()
         glUniform3f(self.uniforms["u_light_direction_eye"], *direcao)
         ambient_color = self.ambientLight.color if self.ambientLight else (0.16, 0.17, 0.19)
@@ -245,11 +250,6 @@ class LightingContext:
             self.uniforms["u_view_transpose"], 1, GL_FALSE,
             self._matriz_transposta_mundo_olho(self.yaw_camera, self.pitch_camera),
         )
-        glUniform1i(
-            self.uniforms["u_shadow_enabled"],
-            int(self.shadow_texture != 0 and self.receiveShadow),
-        )
-        glUniform1i(self.uniforms["u_receive_shadow"], int(self.receiveShadow))
         glUniform3f(self.uniforms["u_fog_color"], *self.fogColor)
         glUniform1f(self.uniforms["u_fog_start"], self.fogStart)
         glUniform1f(self.uniforms["u_fog_end"], self.fogEnd)
@@ -262,6 +262,18 @@ class LightingContext:
         glUniform1f(self.uniforms["u_shadow_bias"], self.shadow_bias)
         glActiveTexture(GL_TEXTURE1)
         glBindTexture(GL_TEXTURE_2D, self.shadow_texture)
+
+    def activate(self):
+        """Seleciona o programa e envia os uniforms da fonte de luz única."""
+        glUseProgram(self.program)
+        if self._uniformes_compartilhados_sujos:
+            self._uniformes_compartilhados_sujos = False
+            self._enviar_uniforms_compartilhados()
+        glUniform1i(
+            self.uniforms["u_shadow_enabled"],
+            int(self.shadow_texture != 0 and self.receiveShadow),
+        )
+        glUniform1i(self.uniforms["u_receive_shadow"], int(self.receiveShadow))
 
 
 class LambertMaterial:
@@ -311,20 +323,9 @@ class LambertMaterial:
         glUniform2f(self.lighting.uniforms["offsetUV"], *self.offsetUV)
         glUniform3f(self.lighting.uniforms["u_material_specular"], *self.specular)
         glUniform1f(self.lighting.uniforms["u_material_shininess"], self.shininess)
-        # Modo apresentação desligado por padrão; os veículos enviam PRESENT_*.
-        uni = self.lighting.uniforms
-        glUniform1i(uni["u_present_mode"], 0)
-        glUniform3f(uni["u_present_ambient_top"], 0.16, 0.17, 0.19)
-        glUniform3f(uni["u_present_ambient_bottom"], 0.16, 0.17, 0.19)
-        glUniform1f(uni["u_present_ambient"], 1.0)
-        glUniform3f(uni["u_present_fill_dir"], 0.0, 0.0, 1.0)
-        glUniform3f(uni["u_present_fill_color"], 0.0, 0.0, 0.0)
-        glUniform1f(uni["u_present_fill"], 0.0)
-        glUniform3f(uni["u_present_rim_color"], 0.0, 0.0, 0.0)
-        glUniform1f(uni["u_present_rim"], 0.0)
-        glUniform1f(uni["u_present_rim_power"], 4.0)
-        glUniform1f(uni["u_present_fog_factor"], 1.0)
-        glUniform1f(uni["u_vehicle_exposure"], 1.0)
+        # O modo apresentação é o único uniform por material; os demais
+        # parâmetros são globais do quadro e ficam no contexto noturno.
+        glUniform1i(self.lighting.uniforms["u_present_mode"], 0)
         usa_textura = self.texture_id is not None
         glUniform1i(self.lighting.uniforms["u_use_texture"], int(usa_textura))
         glUniform1i(self.lighting.uniforms["u_texture"], 0)

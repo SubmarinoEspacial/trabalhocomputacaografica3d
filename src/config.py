@@ -23,9 +23,10 @@ _PERFIS_QUALIDADE = {
         "SHADOW_RESOLUTION": 1024,
         "SHADOW_PCF_SAMPLES": 1,
         "WATER_GRID_RESOLUTION": 80,
-        "WATER_WAVE_COUNT": 3,
+        "WATER_WAVE_COUNT": 2,
         "MAX_POINT_LIGHTS": 2,
         "POST_BLOOM_ENABLED": False,
+        "RENDER_SCALE": 1.0,
         "ROUND_SEGMENTS": 8,
         "ROUND_RINGS": 6,
         "SMALL_SEGMENTS": 6,
@@ -38,9 +39,10 @@ _PERFIS_QUALIDADE = {
         "SHADOW_RESOLUTION": 1024,
         "SHADOW_PCF_SAMPLES": 4,
         "WATER_GRID_RESOLUTION": 80,
-        "WATER_WAVE_COUNT": 5,
+        "WATER_WAVE_COUNT": 3,
         "MAX_POINT_LIGHTS": 2,
-        "POST_BLOOM_ENABLED": True,
+        "POST_BLOOM_ENABLED": False,
+        "RENDER_SCALE": 1.0,
         "ROUND_SEGMENTS": 12,
         "ROUND_RINGS": 8,
         "SMALL_SEGMENTS": 8,
@@ -56,6 +58,7 @@ _PERFIS_QUALIDADE = {
         "WATER_WAVE_COUNT": 5,
         "MAX_POINT_LIGHTS": 4,
         "POST_BLOOM_ENABLED": True,
+        "RENDER_SCALE": 1.0,
         "ROUND_SEGMENTS": 32,
         "ROUND_RINGS": 16,
         "SMALL_SEGMENTS": 12,
@@ -103,9 +106,20 @@ POST_COOL_TINT = (0.72, 0.88, 1.25)
 # Janela e quadros; o tamanho inicial preserva o desempenho da versão anterior.
 WINDOW_SIZE = (960, 540)
 MIN_WINDOW_SIZE = (640, 360)
-# Escala do render interno em tela cheia: 1.0 = nativa, 0.75/0.5 = menos pixels.
-RENDER_SCALE = 1.0
-FRAME_LIMIT = 60
+# Escala do render interno: 1.0 = nativa; a qualidade adaptativa usa 0.85/0.70/0.50.
+# Desempenho e qualidade adaptativa.
+TARGET_FPS = 60                 # T alterna 60/120; V libera o limitador.
+FRAME_LIMIT = TARGET_FPS
+DEBUG_GL = False                # True religa as checagens de erro do PyOpenGL.
+GC_INTERVAL = 10.0              # coleta manual do gc a cada N segundos.
+ADAPTIVE_QUALITY = True
+ADAPTIVE_DOWN_FPS = 0.90        # abaixo de 90% do alvo por 2 s reduz um nível
+ADAPTIVE_UP_FPS = 1.10          # acima de 110% do alvo por 5 s sobe um nível
+ADAPTIVE_DOWN_TIME = 2.0
+ADAPTIVE_UP_TIME = 5.0
+
+# HUD compacto (Parte A).
+HUD_SCALE = 1.0                 # multiplica a fonte; 1.0 ~ 1,5% da altura
 
 # Mar aberto
 WATER_LEVEL = 1.5
@@ -176,6 +190,42 @@ PRESENT_RIM = 0.9                           # intensidade do rim/Fresnel
 PRESENT_RIM_POWER = 3.0                     # potência do Fresnel (maior = mais fino)
 PRESENT_FOG_FACTOR = 0.3                    # neblina 70% mais fraca nos veículos
 PRESENT_VEHICLE_EXPOSURE = 1.15             # exposição extra só dos veículos
+
+
+# HUD (interface sobreposta): controles listados no canto e na documentação.
+# Mantemos uma única fonte de verdade — README e HUD leem desta lista.
+CONTROLS = [
+    ("W/A/S/D", "Câmera"),
+    ("Q/E", "Altura"),
+    ("Setas", "Rotação"),
+    ("ESPAÇO", "Pausa"),
+    ("R", "Reiniciar"),
+    ("F1", "HUD"),
+    ("F2/F4/F5", "Perfis"),
+    ("F3", "Tempos"),
+    ("F11/Alt+Enter", "Tela"),
+    ("ESC", "Sair/sobre"),
+    ("H", "Controles"),
+    ("I", "Sobre"),
+    ("L", "Apresentação"),
+    ("V", "Limite FPS"),
+    ("T", "Alvo 60/120"),
+    ("G", "Adaptativo"),
+]
+
+STUDENT_NAMES = [
+    "Integrante 1: ___ (tema: ___)",
+    "Integrante 2: ___ (tema: ___)",
+]
+
+ABOUT_TITLE = "Abdução no Mar: Submarino x Disco Voador (Computação Gráfica, UNIPAC 2026/02)"
+ABOUT_TEXT = """Submarino emerge no mar noturno e é abduzido por um disco voador.
+
+Sequência: Submerso, Emergindo, Detecção, Posicionamento,
+Inspeção, Feixe, Abdução, Final.
+
+Técnicas: hierarquia e transformações, delta time, câmera,
+UV, luz lunar com sombras (PCF), água procedural e bloom."""
 
 # Lua e iluminação noturna
 # A direção é a dos raios; a lua visível fica no sentido oposto, à frente da câmera.

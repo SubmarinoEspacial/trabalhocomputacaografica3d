@@ -149,9 +149,9 @@ class NoiteLightingContext(LightingContext):
         if localizacao != -1:
             glUniform1f(localizacao, valor)
 
-    def activate(self):
-        """Reaproveita a ativação base e complementa a atmosfera noturna."""
-        super().activate()
+    def _enviar_uniforms_compartilhados(self):
+        """Complementa o quadro com atmosfera, PCF, luzes e apresentação."""
+        super()._enviar_uniforms_compartilhados()
         self._enviar_ajustes_noturnos()
         if self.pcfSamplesLocation != -1:
             glUniform1i(self.pcfSamplesLocation, C.SHADOW_PCF_SAMPLES)
@@ -160,6 +160,20 @@ class NoiteLightingContext(LightingContext):
             self._point_lights_eye,
             self.point_light_count,
         )
+        # PRESENT_* é global do quadro: enviar uma vez aqui evita 12 uniforms
+        # por malha de veículo (eram dezenas de chamadas por frame).
+        uni = self.uniforms
+        glUniform3f(uni["u_present_ambient_top"], *C.PRESENT_AMBIENT_TOP)
+        glUniform3f(uni["u_present_ambient_bottom"], *C.PRESENT_AMBIENT_BOTTOM)
+        glUniform1f(uni["u_present_ambient"], C.PRESENT_AMBIENT)
+        glUniform3f(uni["u_present_fill_dir"], *_direcao_fill_no_espaco_visual(self))
+        glUniform3f(uni["u_present_fill_color"], *C.PRESENT_FILL_COLOR)
+        glUniform1f(uni["u_present_fill"], C.PRESENT_FILL)
+        glUniform3f(uni["u_present_rim_color"], *C.PRESENT_RIM_COLOR)
+        glUniform1f(uni["u_present_rim"], C.PRESENT_RIM)
+        glUniform1f(uni["u_present_rim_power"], C.PRESENT_RIM_POWER)
+        glUniform1f(uni["u_present_fog_factor"], C.PRESENT_FOG_FACTOR)
+        glUniform1f(uni["u_vehicle_exposure"], C.PRESENT_VEHICLE_EXPOSURE)
 
 
 
@@ -172,26 +186,14 @@ def _direcao_fill_no_espaco_visual(lighting):
 
 
 class _VeiculoPresentMixin:
-    """Envia os uniforms do modo apresentação (só usado nos veículos)."""
+    """Liga o modo apresentação; os demais PRESENT_* já são globais do quadro."""
 
     def _enviar_apresentacao(self):
         lighting = self.lighting
         # No passe de sombra (depth_pass) não há programa de material ativo.
         if getattr(lighting, "depth_pass", False):
             return
-        uni = lighting.uniforms
-        glUniform1i(uni["u_present_mode"], int(C.PRESENT_MODE))
-        glUniform3f(uni["u_present_ambient_top"], *C.PRESENT_AMBIENT_TOP)
-        glUniform3f(uni["u_present_ambient_bottom"], *C.PRESENT_AMBIENT_BOTTOM)
-        glUniform1f(uni["u_present_ambient"], C.PRESENT_AMBIENT)
-        glUniform3f(uni["u_present_fill_dir"], *_direcao_fill_no_espaco_visual(lighting))
-        glUniform3f(uni["u_present_fill_color"], *C.PRESENT_FILL_COLOR)
-        glUniform1f(uni["u_present_fill"], C.PRESENT_FILL)
-        glUniform3f(uni["u_present_rim_color"], *C.PRESENT_RIM_COLOR)
-        glUniform1f(uni["u_present_rim"], C.PRESENT_RIM)
-        glUniform1f(uni["u_present_rim_power"], C.PRESENT_RIM_POWER)
-        glUniform1f(uni["u_present_fog_factor"], C.PRESENT_FOG_FACTOR)
-        glUniform1f(uni["u_vehicle_exposure"], C.PRESENT_VEHICLE_EXPOSURE)
+        glUniform1i(lighting.uniforms["u_present_mode"], int(C.PRESENT_MODE))
 
 
 class TexturedPhongMaterial(LambertMaterial):

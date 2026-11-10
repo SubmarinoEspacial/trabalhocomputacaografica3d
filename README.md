@@ -34,10 +34,40 @@ python main.py
 Teste da máquina de estados (sem OpenGL): `python -m tests.test_abducao`
 
 ## Controles
-W/A/S/D mover, Q/E subir/descer, setas girar, ESPAÇO pausar/retomar, R reiniciar a interação.
-F1 perfil baixa, F2 perfil media, F4 perfil alta, F3 mostrar/ocultar diagnóstico (FPS e tempos).
-F11 ou Alt+Enter alternam janela/tela cheia; Esc sai da tela cheia e não fecha o programa.
-L liga/desliga o modo apresentação (iluminação de realce somente nos veículos, sem alterar o cenário).
+A mesma lista pode ser exibida no HUD com H e é definida em `src/config.py` (`CONTROLS`).
+
+| Tecla | Ação |
+|---|---|
+| W/A/S/D | Mover a câmera |
+| Q / E | Subir / descer |
+| Setas | Girar a câmera |
+| ESPAÇO | Pausar / retomar a animação |
+| R | Reiniciar a interação |
+| F1 | Mostrar / ocultar todo o HUD |
+| F2 | Perfil de qualidade média |
+| F3 | Mostrar / ocultar os tempos (FPS, lógica, sombra, render) |
+| F4 | Perfil de qualidade alta |
+| F5 | Perfil de qualidade baixa |
+| F11 / Alt+Enter | Alternar janela / tela cheia |
+| ESC | Sair da tela cheia / fechar o painel Sobre |
+| H | Mostrar / ocultar a lista de controles |
+| I | Abrir / fechar o painel Sobre o projeto |
+| L | Alterna o modo apresentação (iluminação de realce dos veículos) |
+| V | Alterna o limitador de FPS (alvo atual / sem limite) |
+| T | Alterna o alvo entre 60 e 120 FPS |
+| G | Liga / desliga a qualidade adaptativa |
+
+O HUD é discreto: uma linha com FPS, tempo de quadro, estado e alvo no canto superior esquerdo,
+seguida de qualidade/escala e do modo adaptativo. A lista de controles fica escondida por padrão
+(dica `H controles | I sobre | F1 ocultar`); H abre as duas colunas e F1 oculta todo o HUD. O botão
+"? Sobre" no canto superior direito abre um painel pequeno com resumo, sequência, técnicas, créditos
+e referência (também por I; fecha por I, ESC, botão Fechar ou clique fora). Com F3, o HUD acrescenta
+o diagnóstico (GL, janela, sombra, PCF, luzes, draw calls, água e tempos por etapa). O VSync não é
+recriado após a janela existir — V controla o `clock.tick` e T troca o alvo 60/120.
+
+A fonte do HUD escala com a altura da janela (`HUD_SCALE`, padrão `1.0`; ~1,5% da altura, entre
+11 e 18 px). Os textos estáticos são enviados à GPU uma única vez; só a linha de FPS é reconstruída
+a cada 0,5 s.
 
 ## Janela redimensionável
 A janela é criada com `pygame.RESIZABLE`, aceita arrastar as bordas para aumentar ou diminuir e
@@ -47,28 +77,49 @@ pós-processamento e o tamanho guardado na Base. O mapa de sombra não é recria
 tamanho fixo. Tamanho inicial: `WINDOW_SIZE = (960, 540)`. O botão da janela é o único meio de fechar.
 
 Para tela cheia de alto custo, `RENDER_SCALE` (padrão `1.0`) permite renderizar a cena em um
-framebuffer menor e ampliar para a tela inteira; `0.75` ou `0.5` reduzem o custo por pixel sem
-alterar o layout da janela. O mapa de sombra continua independente dessa escala.
+framebuffer menor e ampliar para a tela inteira; a qualidade adaptativa usa `0.85`, `0.70` e `0.50`
+quando o FPS fica abaixo de 90% do alvo por 2 s. O mapa de sombra continua independente dessa escala.
 
 ## Desempenho e perfis de qualidade
 O padrão é `media`; também é possível escolher no arranque com `--quality baixa|media|alta`
-(`--qualidade` também funciona). F1/F2/F4 trocam o perfil em tempo real, recriando
-a sombra e a cena com os novos parâmetros e reiniciando a sequência. A janela usa
-`WINDOW_SIZE` por padrão. Antes da
-sintonia, a cena medida em uma Intel Iris Xe ficou em cerca de 10 FPS; após os cortes,
-`baixa` ficou em torno de 36 FPS e `media` em torno de 29–31 FPS. `alta` preserva a
-qualidade visual anterior (cerca de 12–13 FPS na mesma máquina).
+(`--qualidade` também funciona). F2/F4/F5 trocam o perfil em tempo real, recriando a sombra
+e a cena e reiniciando a sequência; o estado do limitador escolhido com V é preservado.
+T alterna o alvo entre 60 e 120 FPS e G liga/desliga a qualidade adaptativa. A janela usa
+`WINDOW_SIZE` por padrão.
+
+Medição na Intel Iris Xe (Mesa 25.2.8, GL 4.6 Compatibility), F3 ligado, adaptação desligada
+e V sem limite para medir a capacidade real:
+
+| Perfil | Janela 960×540 (alvo 60) | Janela sem limite | Tela cheia 1920×1080 (alvo 60) | Tela cheia sem limite |
+|---|---|---|---|---|
+| `baixa` | 60–62 FPS | ~280 FPS | 60–62 FPS | ~165–180 FPS |
+| `media` | 60–62 FPS | ~280–300 FPS | 60–62 FPS | ~170–180 FPS |
+| `alta` | 60–62 FPS | ~200–220 FPS | 60–62 FPS (alvo 120: ~120) | ~128–135 FPS |
+
+Antes desta rodada, `media` em 960×540 ficava em ~28–31 FPS (frame ~33–35 ms; principal
+29–32 ms; sombra 3,1–3,5 ms). Depois do cache de geometria e uniforms, o passe principal
+caiu para ~1,8–2,3 ms e a sombra para ~0,65–0,8 ms na janela; a tela cheia em `alta` fica em
+~7,5 ms de CPU, ainda acima de 120 FPS de capacidade. O HUD custa ~0,07 ms por quadro
+(0,10 ms ligado contra 0,03 ms oculto no contador), bem abaixo de 1 FPS no alvo de 60.
 
 | Perfil | Sombra | PCF | Água | Ondas | Luzes pontuais | Detalhes | Bloom | Geometria |
 |---|---|---|---|---|---|---|---|---|
-| `baixa` | 1024 | 1 amostra | 80 × 80 | 3 | 2 | ocultados | desligado | 8/6 segmentos/anéis |
-| `media` | 1024 | 4 amostras (2 × 2) | 80 × 80 | 5 | 2 | ocultados; luzes do anel: 8 | ligado | 12/8 segmentos/anéis |
-| `alta` | 2048 | 9 amostras (3 × 3) | 200 × 200 | 5 | 4 | completos; luzes do anel: 16 | ligado | 32/16 segmentos/anéis |
+| `baixa` | 1024 | 1 amostra | 80 × 80 | 2 | 2 | ocultados | desligado | 8/6 segmentos/anéis |
+| `media` | 1024 | 4 amostras (2 × 2) | 80 × 80 | 3 | 2 | ocultados; luzes do anel: 8 | desligado | 12/8 segmentos/anéis |
+| `alta` | 2048 | 9 amostras (3 × 3) | 200 × 200 | 5 | 4 | completos; luzes do anel: 16 | ligado em 1/4 de resolução | 32/16 segmentos/anéis |
 
-No `media`, o total aproximado de meshes visíveis ficou em 84–86 (somente os modelos
-principais entram no passe de sombra). O perfil `alta` é destinado à apresentação visual;
-`baixa` e `media` mantêm os requisitos de dois modelos, hierarquia, estados, pausa,
-textura UV, luz direcional com normais e shadow mapping atualizado.
+No `media`, o total aproximado de meshes visíveis ficou em 84–89 (somente os modelos
+principais entram no passe de sombra, 8 draws); em `alta`, 122–127. O alvo original de
+menos de 60 draw calls no passe principal não foi necessário depois do cache: o custo de
+CPU dos 84–127 draws ficou abaixo de ~1 ms, e todos os perfis passam de 60 FPS. O perfil
+`alta` é destinado à apresentação visual; `baixa` e `media` mantêm os requisitos de dois
+modelos, hierarquia, estados, pausa, textura UV, luz direcional com normais e shadow
+mapping atualizado.
+
+A qualidade adaptativa reduz um degrau após 2 s abaixo de 90% do alvo e sobe após 5 s
+acima de 110%, na ordem escala de render → PCF → ondas da água → luzes pontuais → bloom.
+Ela só altera uniforms, alvos de pós-processamento e parâmetros lidos por frame; nenhuma
+malha é recriada.
 
 ## Onde está cada recurso gráfico
 | Requisito | Arquivo / classe / função |

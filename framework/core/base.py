@@ -34,6 +34,11 @@ class Base:
 
         glEnable(GL_DEPTH_TEST)
         self.relogio = pygame.time.Clock()
+        # Limitador de FPS público: o HUD alterna entre FRAME_LIMIT (60) e 0
+        # (clock.tick(0) = sem limite) com a tecla V, para medir a capacidade real.
+        # O VSync não é recriado aqui — set_mode não pediu vsync, então só o
+        # clock.tick é alternável em tempo de execução.
+        self.frame_limit = 60
 
         self.initialize()
         self.run()
@@ -113,7 +118,7 @@ class Base:
                 break
 
             # O limite de quadros controla o uso de recursos; a animação usa o tempo medido.
-            self.deltaTime = self.relogio.tick(60) / 1000.0
+            self.deltaTime = self.relogio.tick(self.frame_limit) / 1000.0
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             self.update()
             pygame.display.flip()

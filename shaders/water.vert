@@ -16,7 +16,7 @@ uniform vec4 u_wave3;
 uniform float u_wave_speed3;
 uniform vec4 u_wave4;
 uniform float u_wave_speed4;
-// u_wave_count limita a soma de senos: 3 no perfil baixo e 5 nos demais.
+// u_wave_count limita a soma de senos: 2 (baixo), 3 (médio) ou 5 (alto).
 uniform int u_wave_count;
 uniform mat4 u_light_view_projection_eye;
 varying vec3 v_normal_eye;
@@ -29,7 +29,10 @@ void main() {
     vec2 xz = gl_Vertex.xz;
     float phase0 = u_wave0.w * dot(u_wave0.xy, xz) + u_wave_speed0 * u_time;
     float phase1 = u_wave1.w * dot(u_wave1.xy, xz) + u_wave_speed1 * u_time;
-    float phase2 = u_wave2.w * dot(u_wave2.xy, xz) + u_wave_speed2 * u_time;
+    float phase2 = 0.0;
+    if (u_wave_count > 2) {
+        phase2 = u_wave2.w * dot(u_wave2.xy, xz) + u_wave_speed2 * u_time;
+    }
 
     float phase3 = 0.0;
     if (u_wave_count > 3) {
@@ -41,8 +44,10 @@ void main() {
     }
 
     float waveHeight = u_wave0.z * sin(phase0)
-                     + u_wave1.z * sin(phase1)
-                     + u_wave2.z * sin(phase2);
+                     + u_wave1.z * sin(phase1);
+    if (u_wave_count > 2) {
+        waveHeight += u_wave2.z * sin(phase2);
+    }
     if (u_wave_count > 3) {
         waveHeight += u_wave3.z * sin(phase3);
     }
@@ -51,11 +56,13 @@ void main() {
     }
 
     float derivativeX = u_wave0.z * u_wave0.w * u_wave0.x * cos(phase0)
-                      + u_wave1.z * u_wave1.w * u_wave1.x * cos(phase1)
-                      + u_wave2.z * u_wave2.w * u_wave2.x * cos(phase2);
+                      + u_wave1.z * u_wave1.w * u_wave1.x * cos(phase1);
     float derivativeZ = u_wave0.z * u_wave0.w * u_wave0.y * cos(phase0)
-                      + u_wave1.z * u_wave1.w * u_wave1.y * cos(phase1)
-                      + u_wave2.z * u_wave2.w * u_wave2.y * cos(phase2);
+                      + u_wave1.z * u_wave1.w * u_wave1.y * cos(phase1);
+    if (u_wave_count > 2) {
+        derivativeX += u_wave2.z * u_wave2.w * u_wave2.x * cos(phase2);
+        derivativeZ += u_wave2.z * u_wave2.w * u_wave2.y * cos(phase2);
+    }
     if (u_wave_count > 3) {
         derivativeX += u_wave3.z * u_wave3.w * u_wave3.x * cos(phase3);
         derivativeZ += u_wave3.z * u_wave3.w * u_wave3.y * cos(phase3);

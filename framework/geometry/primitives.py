@@ -19,10 +19,16 @@ from OpenGL.GL import (
     GL_VERTEX_ARRAY,
     GL_NORMAL_ARRAY,
     GL_TEXTURE_COORD_ARRAY,
+    GL_COMPILE,
     glBindBuffer,
     glBegin,
     glBufferData,
+    glCallList,
+    glDeleteLists,
     glEnd,
+    glEndList,
+    glGenLists,
+    glNewList,
     glDrawElements,
     glEnableClientState,
     glDisableClientState,
@@ -36,14 +42,48 @@ from OpenGL.GL import (
 )
 
 
-class PlaneGeometry:
+class _GeometriaLista:
+    """Compila a emissão imediata uma única vez em uma display list.
+
+    As geometrias pequenas eram reemitidas com milhares de chamadas Python por
+    quadro (math.cos/sin + glVertex). A display list preserva o desenho e o
+    estilo didático do código, mas elimina esse custo de CPU em tempo de execução.
+    """
+
+    _lista = None
+
+    def draw(self):
+        """Reaproveita a lista compilada; compila na primeira vez que desenha."""
+        if self._lista is None:
+            lista = glGenLists(1)
+            glNewList(lista, GL_COMPILE)
+            try:
+                self._emitir()
+            finally:
+                glEndList()
+            self._lista = lista
+        glCallList(self._lista)
+
+    def _emitir(self):
+        raise NotImplementedError("A geometria deve implementar _emitir().")
+
+    def __del__(self):
+        lista = getattr(self, "_lista", None)
+        if lista is not None:
+            try:
+                glDeleteLists(lista, 1)
+            except Exception:
+                pass  # contexto já destruído no encerramento do processo
+
+
+class PlaneGeometry(_GeometriaLista):
     """Plano horizontal com coordenadas UV configuráveis para repetição."""
 
     def __init__(self, width, depth):
         self.width = width
         self.depth = depth
 
-    def draw(self):
+    def _emitir(self):
         """Repete o UV por quantidade de ladrilhos, mantendo proporção física."""
         half_width = self.width / 2.0
         half_depth = self.depth / 2.0
@@ -120,7 +160,7 @@ class WaterGridGeometry:
         glBindBuffer(GL_ARRAY_BUFFER, 0)
 
 
-class BoxGeometry:
+class BoxGeometry(_GeometriaLista):
     """Caixa centrada na origem, formada por seis faces quadriláteras."""
 
     def __init__(self, width, height, depth):
@@ -128,7 +168,7 @@ class BoxGeometry:
         self.half_height = height / 2.0
         self.half_depth = depth / 2.0
 
-    def draw(self):
+    def _emitir(self):
         """Emite as seis faces da caixa com normais voltadas para fora."""
         x, y, z = self.half_width, self.half_height, self.half_depth
         faces = (
@@ -150,7 +190,7 @@ class BoxGeometry:
         glEnd()
 
 
-class CylinderGeometry:
+class CylinderGeometry(_GeometriaLista):
     """Cilindro ao longo do eixo Y, criado para composição de modelos locais."""
 
     def __init__(self, radius_top, radius_bottom, height, segments=20):
@@ -159,7 +199,7 @@ class CylinderGeometry:
         self.height = height
         self.segments = max(3, segments)
 
-    def draw(self):
+    def _emitir(self):
         """Desenha lateral e bases; a normal inclui a inclinação do tronco."""
         half_height = self.height / 2.0
         # O raio varia com Y nos cones, então a normal lateral também tem componente Y.
@@ -201,14 +241,14 @@ class CylinderGeometry:
             glEnd()
 
 
-class SphereGeometry:
+class SphereGeometry(_GeometriaLista):
     """Esfera de raio unitário, escalada no nó Mesh para formar os modelos."""
 
     def __init__(self, segments=24, rings=16):
         self.segments = max(3, segments)
         self.rings = max(2, rings)
 
-    def draw(self):
+    def _emitir(self):
         """Tesselaciona a esfera em quadriláteros com normais suaves."""
         glBegin(GL_QUADS)
         for ring in range(self.rings):
@@ -231,7 +271,7 @@ class SphereGeometry:
         glEnd()
 
 
-class ConeGeometry:
+class ConeGeometry(_GeometriaLista):
     """Cone no eixo Y, com vértice em cima e base circular embaixo."""
 
     def __init__(self, radius=1.0, height=1.0, segments=24):
@@ -239,7 +279,7 @@ class ConeGeometry:
         self.height = height
         self.segments = max(3, segments)
 
-    def draw(self):
+    def _emitir(self):
         """Desenha a lateral triangular e uma base voltada para baixo."""
         half_height = self.height / 2.0
         normal_length = math.hypot(self.height, self.radius)

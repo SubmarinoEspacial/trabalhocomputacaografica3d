@@ -2,45 +2,23 @@
 
 // Cena renderizada no framebuffer de cor, amostrada na tela inteira.
 uniform sampler2D u_scene_texture;
-// Tamanho de um texel, usado para espalhar as amostras do bloom.
-uniform vec2 u_texel_size;
-// Intensidade do halo e limiar de brilho que alimenta o bloom.
+// Bloom já extraído e desfocado em 1/4 de resolução pelo passe dedicado.
+uniform sampler2D u_bloom_texture;
+// Intensidade do halo e chave para pular a amostra no perfil baixo.
 uniform float u_bloom_strength;
-uniform float u_bloom_threshold;
-// u_bloom_enabled permite ao perfil baixo pular todas as amostras do halo.
 uniform int u_bloom_enabled;
 // Escurecimento suave das bordas e tinta fria do grade noturno.
 uniform float u_vignette_strength;
 uniform vec3 u_cool_tint;
 varying vec2 v_uv;
 
-// Extrai apenas a parte acima do limiar; luzes, lua e feixe geram o halo.
-vec3 amostraBrilhante(vec2 uv) {
-    vec3 cor = texture2D(u_scene_texture, uv).rgb;
-    return max(cor - vec3(u_bloom_threshold), vec3(0.0));
-}
-
 void main() {
     vec3 color = texture2D(u_scene_texture, v_uv).rgb;
-    vec2 t = u_texel_size;
 
     if (u_bloom_enabled != 0) {
-        // Oito amostras próximas formam o núcleo do brilho e quatro distantes
-        // espalham um halo suave sem exigir um segundo passe de desfoque.
-        vec3 bloom =
-            amostraBrilhante(v_uv + vec2( 4.0,  0.0) * t) +
-            amostraBrilhante(v_uv + vec2(-4.0,  0.0) * t) +
-            amostraBrilhante(v_uv + vec2( 0.0,  4.0) * t) +
-            amostraBrilhante(v_uv + vec2( 0.0, -4.0) * t) +
-            amostraBrilhante(v_uv + vec2( 3.0,  3.0) * t) +
-            amostraBrilhante(v_uv + vec2(-3.0,  3.0) * t) +
-            amostraBrilhante(v_uv + vec2( 3.0, -3.0) * t) +
-            amostraBrilhante(v_uv + vec2(-3.0, -3.0) * t) +
-            0.55 * amostraBrilhante(v_uv + vec2(10.0,  0.0) * t) +
-            0.55 * amostraBrilhante(v_uv + vec2(-10.0, 0.0) * t) +
-            0.55 * amostraBrilhante(v_uv + vec2( 0.0, 10.0) * t) +
-            0.55 * amostraBrilhante(v_uv + vec2( 0.0, -10.0) * t);
-        bloom /= 10.2;
+        // Uma única amostra no alvo reduzido substitui as 12 amostras em tela
+        // cheia do passe antigo; o desfoque largo acontece no alvo de 1/4.
+        vec3 bloom = texture2D(u_bloom_texture, v_uv).rgb;
         color += bloom * u_cool_tint * u_bloom_strength;
     }
 

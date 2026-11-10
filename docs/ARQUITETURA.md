@@ -10,8 +10,10 @@
 - `src/environment/point_light.py`: descrição das luzes pontuais dinâmicas.
 - `src/environment/foam.py`: espuma de contato e esteira do submarino.
 - `src/environment/effects.py`: materiais aditivos do feixe e do anel de impacto.
-- `src/environment/postprocess.py`: framebuffer de cor, bloom e vinheta.
+- `src/environment/postprocess.py`: framebuffer de cor, bloom reduzido em 1/4 (brilho + desfoque separável) e vinheta.
+- `src/environment/adaptive.py`: qualidade adaptativa com histerese (escala de render, PCF, ondas, luzes e bloom).
+- `src/ui/hud.py`: HUD compacto em projeção ortográfica (FPS, controles, Sobre e diagnóstico).
 - `src/controls/camera_rig.py`: câmera e controles de movimento; pausa e reset ficam em `main.py`.
-- `shaders/`: GLSL de superfície, água, céu, espuma, feixe, impacto, depth e pós-processamento.
+- `shaders/`: GLSL de superfície, água, céu, espuma, feixe, impacto, depth, bloom e pós-processamento.
 - `assets/textures/`: imagens; a origem de cada textura está no README.
 - `framework/`: implementações locais organizadas segundo os conceitos do livro.

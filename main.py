@@ -1,4 +1,5 @@
 """Aplicação de validação da câmera e dos controles da cena de abdução."""
+import gc
 import math
 import os
 import sys
@@ -6,11 +7,26 @@ import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "framework"))
 
+# As checagens de erro do PyOpenGL custam caro por chamada GL; DEBUG_GL religa
+# tudo em config.py quando for necessário depurar. Isto precisa vir antes de
+# qualquer import de OpenGL.GL, pois o PyOpenGL lê as flags na importação.
+import OpenGL
+
+from src import config as C
+
+if not C.DEBUG_GL:
+    OpenGL.ERROR_CHECKING = False
+    OpenGL.ERROR_LOGGING = False
+    OpenGL.FULL_LOGGING = False
+
 import pygame
 from OpenGL.GL import (
     GL_MODELVIEW,
     GL_PROJECTION,
+    GL_RENDERER,
+    GL_VERSION,
     glClearColor,
+    glGetString,
     glLoadIdentity,
     glMatrixMode,
     glViewport,
@@ -21,10 +37,10 @@ from core.base import Base
 from core.mesh import Mesh
 from core_ext.scene import Scene
 from src.controls.camera_rig import MovementRig
-from src import config as C
 from src.entities.disco_voador import DiscoVoador
 from src.entities.efeitos import EfeitosAbducao
 from src.entities.submarino import Submarino
+from src.environment.adaptive import QualidadeAdaptativa
 from src.environment.foam import build_espuma
 from src.environment.mar import build_mar
 from src.environment.night_materials import NoiteLightingContext
@@ -33,6 +49,7 @@ from src.environment.postprocess import PostProcess
 from src.environment.shadow import ActionShadowMap
 from src.environment.sky import build_ceu
 from src.interaction.abducao import AbducaoController
+from src.ui.hud import Hud
 from light.directional import DirectionalLight
 from light.ambient import AmbientLight
 
@@ -79,6 +96,8 @@ class Aplicacao(Base):
         self.camera_rig.pitch = -17.0
         self.postprocess = PostProcess(self.largura, self.altura)
         self._criar_mundo()
+        self.frame_limit = C.TARGET_FPS if self.hud.limitador_ativo else 0
+        self.qualidade_adaptativa = QualidadeAdaptativa(self.postprocess)
 
         self.pausado = False
         self.tempoAnimacao = 0.0
@@ -86,11 +105,17 @@ class Aplicacao(Base):
         self._r_anterior = False
         self._f3_anterior = False
         self._l_anterior = False
+        self._f5_anterior = False
+        self._h_anterior = False
+        self._i_anterior = False
+        self._v_anterior = False
         self._f1_anterior = False
         self._f2_anterior = False
         self._f4_anterior = False
         self._f11_anterior = False
         self._alt_enter_anterior = False
+        self._t_anterior = False
+        self._g_anterior = False
         self._frames_perfil = 0
         self._ultima_impressao = time.perf_counter()
         self._acumulos = {
@@ -99,11 +124,45 @@ class Aplicacao(Base):
             "sombra": 0.0,
             "principal": 0.0,
             "pos": 0.0,
+            "hud": 0.0,
             "frame": 0.0,
         }
         self._mesh_draw_principal = 0.0
         self._mesh_draw_sombra = 0.0
+        self._draw_principal = 0
+        self._draw_sombra = 0
+        self._tempo_hud = 0.0
+        self._diag_estatico = {}
+        self._gl_renderer, self._gl_version = self._ler_info_gl()
+        print(
+            f"GL_RENDERER: {self._gl_renderer} | GL_VERSION: {self._gl_version} | "
+            f"janela {self.largura}x{self.altura}",
+            flush=True,
+        )
+        self._proximo_gc = time.perf_counter() + C.GC_INTERVAL
         self._atualizar_titulo(False)
+        # Congela o que já existe e desliga o GC automático no laço; a coleta
+        # manual de _coletar_lixo evita acúmulo de ciclos sem pausas por frame.
+        gc.collect()
+        gc.freeze()
+        gc.disable()
+
+    @staticmethod
+    def _ler_info_gl():
+        """Lê o renderer/versão uma única vez para diagnóstico de hardware."""
+        renderer = glGetString(GL_RENDERER)
+        version = glGetString(GL_VERSION)
+        decodificar = lambda valor: (
+            valor.decode("utf-8", errors="replace") if isinstance(valor, bytes) else str(valor)
+        )
+        return decodificar(renderer or "?"), decodificar(version or "?")
+
+    def _coletar_lixo(self):
+        """GC automático fica desligado no laço; coleta manual a cada N segundos."""
+        agora = time.perf_counter()
+        if agora >= self._proximo_gc:
+            gc.collect()
+            self._proximo_gc = agora + C.GC_INTERVAL
 
     def on_resize(self, largura, altura):
         """Ajusta viewport, projeção e pós-processamento sem reiniciar a cena."""
@@ -114,9 +173,14 @@ class Aplicacao(Base):
         self._atualizar_projecao(largura, altura)
         if hasattr(self, "postprocess"):
             self.postprocess.resize(largura, altura)
+        if hasattr(self, "hud"):
+            self.hud.on_resize(self.largura, self.altura)
 
     def on_escape(self):
-        """ESC sai da tela cheia; não fecha a aplicação."""
+        """ESC fecha o painel Sobre; senão sai da tela cheia. Nunca fecha o app."""
+        if getattr(self, "hud", None) is not None and self.hud.sobre_aberto():
+            self.hud.fechar_sobre()
+            return False
         if pygame.display.is_fullscreen():
             self._alternar_tela_cheia()
         return False
@@ -188,17 +252,31 @@ class Aplicacao(Base):
         self.espuma = build_espuma(self.scene)
         self.efeitos = EfeitosAbducao(self.scene)
         self.controlador = AbducaoController(self.submarino, self.disco)
+        # HUD desenhado por último: não toca no passe de sombra nem na cena.
+        self.hud = Hud(self.largura, self.altura)
+        pygame.mouse.set_visible(True)
 
     def _trocar_perfil_qualidade(self, nome):
         """Aplica um perfil e recria sombra/cena com os novos parâmetros."""
         if nome == C.QUALITY:
             return
         C.aplicar_perfil_qualidade(nome)
+        limitador_anterior = self.hud.limitador_ativo
         self._criar_sombra()
         self._criar_mundo()
+        # O HUD é recriado; preserva o estado do limitador escolhido com V.
+        self.hud.limitador_ativo = limitador_anterior
+        self.frame_limit = C.TARGET_FPS if limitador_anterior else 0
+        # A escala do perfil volta ao padrão e a escada adaptativa é recalculada.
+        if hasattr(self, "postprocess"):
+            self.postprocess.set_render_scale(C.RENDER_SCALE)
+        if hasattr(self, "qualidade_adaptativa"):
+            self.qualidade_adaptativa.recarregar_base()
         self.tempoAnimacao = 0.0
         self.pausado = False
         self._zerar_perfil()
+        gc.collect()
+        gc.freeze()
         pygame.display.set_caption(
             f"Validacao OpenGL | Perfil {C.QUALITY} | F3 mostra o perfil"
         )
@@ -211,6 +289,16 @@ class Aplicacao(Base):
         self._mesh_original_draw = Mesh.draw
 
         def draw_medido(mesh, render_pass=None):
+            # Conta apenas desenhos reais (o filtro de passe fica no Mesh.draw).
+            if render_pass == "shadow":
+                if mesh.castShadow:
+                    self._draw_sombra += 1
+            else:
+                transparente = getattr(mesh.material, "transparent", False)
+                if (render_pass == "opaque" and not transparente) or (
+                    render_pass == "transparent" and transparente
+                ):
+                    self._draw_principal += 1
             if not self.perfil_ativo:
                 return self._mesh_original_draw(mesh, render_pass)
             inicio = time.perf_counter()
@@ -285,6 +373,13 @@ class Aplicacao(Base):
         meshes, meshes_sombra, vertices_agua, indices_agua = self._contar_arvore()
         luzes = self.lighting.point_light_count + 2
         fps = frames / intervalo
+        self._diag_estatico = {
+            "meshes": meshes,
+            "meshes_sombra": meshes_sombra,
+            "agua_vtx": vertices_agua,
+            "agua_idx": indices_agua,
+            "luzes": luzes,
+        }
         texto = (
             f"F3 {fps:.1f} | frame {contadores['frame'] / frames * 1000:.1f} ms | "
             f"logica {contadores['logica'] / frames * 1000:.2f} | "
@@ -292,12 +387,33 @@ class Aplicacao(Base):
             f"sombra {contadores['sombra'] / frames * 1000:.2f} | "
             f"principal {contadores['principal'] / frames * 1000:.2f} | "
             f"pos {contadores['pos'] / frames * 1000:.2f} | "
+            f"hud {contadores['hud'] / frames * 1000:.2f} | "
+            f"draws principal={self._draw_principal} sombra={self._draw_sombra} | "
             f"Meshes cena={meshes} sombra={meshes_sombra} | luzes={luzes} | "
-            f"agua_vtx={vertices_agua} idx={indices_agua} | sombra={self.shadow_map.resolution}px PCF={C.SHADOW_PCF_SAMPLES} | passes_pos=1"
+            f"agua_vtx={vertices_agua} idx={indices_agua} | "
+            f"sombra={self.shadow_map.resolution}px PCF={C.SHADOW_PCF_SAMPLES} | "
+            f"GL={self._gl_renderer} | janela={self.largura}x{self.altura}"
         )
-        print(texto)
+        print(texto, flush=True)
         pygame.display.set_caption(f"Validacao OpenGL | {texto}")
         self._zerar_perfil()
+
+    def _diagnostico_hud(self):
+        """Resumo enviado ao HUD: hardware fixo + contadores do último quadro."""
+        static = self._diag_estatico
+        return {
+            "renderer": self._gl_renderer,
+            "version": self._gl_version,
+            "janela": f"{self.largura}x{self.altura}",
+            "sombra_res": self.shadow_map.resolution,
+            "pcf": C.SHADOW_PCF_SAMPLES,
+            "luzes": static.get("luzes", self.lighting.point_light_count + 2),
+            "agua_vtx": static.get("agua_vtx", "?"),
+            "meshes": static.get("meshes", "?"),
+            "meshes_sombra": static.get("meshes_sombra", "?"),
+            "draws_principal": self._draw_principal,
+            "draws_sombra": self._draw_sombra,
+        }
 
     def _atualizar_luzes_pontuais(self):
         """Posiciona os porões/holofote do sub e as luzes do disco a cada quadro.
@@ -398,8 +514,54 @@ class Aplicacao(Base):
 
         f1_pressionado = bool(teclas[pygame.K_F1])
         if f1_pressionado and not self._f1_anterior:
-            self._trocar_perfil_qualidade("baixa")
+            oculto = self.hud.alternar_hud()
+            print("HUD oculto (F1 mostra de novo)" if oculto else "HUD visível", flush=True)
         self._f1_anterior = f1_pressionado
+
+        f5_pressionado = bool(teclas[pygame.K_F5])
+        if f5_pressionado and not self._f5_anterior:
+            self._trocar_perfil_qualidade("baixa")
+        self._f5_anterior = f5_pressionado
+
+        h_pressionado = bool(teclas[pygame.K_h])
+        if h_pressionado and not self._h_anterior:
+            self.hud.alternar_controles()
+        self._h_anterior = h_pressionado
+
+        i_pressionado = bool(teclas[pygame.K_i])
+        if i_pressionado and not self._i_anterior:
+            self.hud.alternar_sobre()
+        self._i_anterior = i_pressionado
+
+        v_pressionado = bool(teclas[pygame.K_v])
+        if v_pressionado and not self._v_anterior:
+            ativo = self.hud.alternar_limite()
+            self.frame_limit = C.TARGET_FPS if ativo else 0
+            print(
+                f"Limitador de FPS: {C.TARGET_FPS} FPS (clock.tick)"
+                if ativo else "Limitador de FPS: sem limite",
+                flush=True,
+            )
+        self._v_anterior = v_pressionado
+
+        t_pressionado = bool(teclas[pygame.K_t])
+        if t_pressionado and not self._t_anterior:
+            C.TARGET_FPS = 120 if C.TARGET_FPS == 60 else 60
+            if self.hud.limitador_ativo:
+                self.frame_limit = C.TARGET_FPS
+            print(f"Alvo de FPS: {C.TARGET_FPS} (T alterna 60/120)", flush=True)
+        self._t_anterior = t_pressionado
+
+        g_pressionado = bool(teclas[pygame.K_g])
+        if g_pressionado and not self._g_anterior:
+            ativo = self.qualidade_adaptativa.alternar()
+            self.qualidade_adaptativa.ativo = ativo
+            print(
+                f"Qualidade adaptativa: {'ligada' if ativo else 'desligada'} "
+                f"(G alterna; nível {self.qualidade_adaptativa.nivel})",
+                flush=True,
+            )
+        self._g_anterior = g_pressionado
 
         f2_pressionado = bool(teclas[pygame.K_F2])
         if f2_pressionado and not self._f2_anterior:
@@ -445,6 +607,8 @@ class Aplicacao(Base):
         # O foco da sombra usa as posições lógicas, antes de desenhar a cena.
         self._mesh_draw_principal = 0.0
         self._mesh_draw_sombra = 0.0
+        self._draw_principal = 0
+        self._draw_sombra = 0
         inicio_sombra = time.perf_counter()
         self.shadow_map.updateFocus(delta_quadro, self.submarino, self.disco)
         self.shadow_map.render(self.scene, self.camera_rig)
@@ -460,8 +624,37 @@ class Aplicacao(Base):
         inicio_pos = time.perf_counter()
         self.postprocess.end()
         tempo_pos = time.perf_counter() - inicio_pos
-        tempo_frame = time.perf_counter() - inicio_frame
         tempo_arvore = max(0.0, tempo_principal - self._mesh_draw_principal)
+
+        # O HUD vai por cima do pós-processamento, com FPS e estado atualizados.
+        estado_nome = self.controlador.estado.name if self.controlador else "?"
+        inicio_hud = time.perf_counter()
+        self.hud.atualizar(
+            self.deltaTime,
+            estado_nome,
+            timings={
+                "logica": tempo_logica,
+                "arvore": tempo_arvore,
+                "sombra": tempo_sombra,
+                "principal": tempo_principal,
+                "pos": tempo_pos,
+                "hud": self._tempo_hud,
+            },
+            perfil_ativo=self.perfil_ativo,
+            diagnostico=self._diagnostico_hud() if self.perfil_ativo else None,
+            alvo_fps=C.TARGET_FPS,
+            qualidade=C.QUALITY,
+            escala=C.RENDER_SCALE,
+            adaptativo=self.qualidade_adaptativa.ativo,
+        )
+        self.hud.tratar_mouse(pygame.mouse.get_pos(), pygame.mouse.get_pressed()[0])
+        self.hud.desenhar()
+        self._tempo_hud = time.perf_counter() - inicio_hud
+        tempo_frame = time.perf_counter() - inicio_frame
+
+        # A adaptação lê a média do HUD e troca escala/uniforms, nunca malhas.
+        self.qualidade_adaptativa.update(self.deltaTime, self.hud.fps())
+        self._coletar_lixo()
 
         if self.perfil_ativo:
             self._registrar_frame({
@@ -470,6 +663,7 @@ class Aplicacao(Base):
                 "sombra": tempo_sombra,
                 "principal": tempo_principal,
                 "pos": tempo_pos,
+                "hud": self._tempo_hud,
                 "frame": tempo_frame,
             })
 
