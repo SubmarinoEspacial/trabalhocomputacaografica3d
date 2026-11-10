@@ -36,7 +36,7 @@ from OpenGL.GLU import gluPerspective
 from core.base import Base
 from core.mesh import Mesh
 from core_ext.scene import Scene
-from src.controls.camera_rig import MovementRig
+from src.controls.camera_rig import CameraRig
 from src.entities.disco_voador import DiscoVoador
 from src.entities.efeitos import EfeitosAbducao
 from src.entities.submarino import Submarino
@@ -92,8 +92,7 @@ class Aplicacao(Base):
 
         self.lighting = setup_luz()
         self._criar_sombra()
-        self.camera_rig = MovementRig(posicao=(0.0, 13.0, 34.0))
-        self.camera_rig.pitch = -17.0
+        self.camera_rig = CameraRig()
         self.postprocess = PostProcess(self.largura, self.altura)
         self._criar_mundo()
         self.frame_limit = C.TARGET_FPS if self.hud.limitador_ativo else 0
@@ -496,6 +495,7 @@ class Aplicacao(Base):
         r_pressionado = bool(teclas[pygame.K_r])
         if r_pressionado and not self._r_anterior:
             self.controlador.reset()
+            self.camera_rig.reset()
         self._r_anterior = r_pressionado
 
         l_pressionado = bool(teclas[pygame.K_l])

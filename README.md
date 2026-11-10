@@ -41,8 +41,9 @@ A mesma lista pode ser exibida no HUD com H e é definida em `src/config.py` (`C
 | W/A/S/D | Mover a câmera |
 | Q / E | Subir / descer |
 | Setas | Girar a câmera |
+| SHIFT (segurar) | Movimento ×3 |
 | ESPAÇO | Pausar / retomar a animação |
-| R | Reiniciar a interação |
+| R | Reiniciar a interação e restaurar a câmera inicial |
 | F1 | Mostrar / ocultar todo o HUD |
 | F2 | Perfil de qualidade média |
 | F3 | Mostrar / ocultar os tempos (FPS, lógica, sombra, render) |
@@ -127,7 +128,7 @@ malha é recriada.
 | R1 Modelos | `src/entities/submarino.py`, `disco_voador.py` |
 | R2 Animação e interação (delta time) | `src/interaction/abducao.py` |
 | R3 Translação, rotação, escala, hierarquia | `src/entities/*` |
-| R4 Câmera e pausa | `src/controls/camera_rig.py`, `main.py` |
+| R4 Câmera e pausa | `src/controls/camera_rig.py`, `main.py`, `tests/test_camera.py` |
 | R5 Textura de areia | `src/environment/mar.py` (`build_mar`), `framework/core/texture.py`, `framework/material/texture.py` |
 | R6 Ondas, shading e sombra da água | `src/environment/mar.py` (`water_height`, `water_slope`), `shaders/water.vert`, `shaders/water.frag` |
 | R7 Iluminação | `framework/light/ambient.py`, `framework/light/directional.py`, `framework/material/phong.py`, `framework/material/lambert.py`, `src/environment/night_materials.py` |

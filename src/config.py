@@ -121,6 +121,15 @@ ADAPTIVE_UP_TIME = 5.0
 # HUD compacto (Parte A).
 HUD_SCALE = 1.0                 # multiplica a fonte; 1.0 ~ 1,5% da altura
 
+# Câmera inicial e controles (rig de voo: yaw no pai, pitch no filho).
+CAMERA_START_POSITION = (0.0, 13.0, 34.0)
+CAMERA_START_YAW = 0.0
+CAMERA_START_PITCH = -17.0
+PITCH_LIMIT = 85.0
+CAMERA_MOVE_SPEED = 8.0          # unidades por segundo
+CAMERA_TURN_SPEED = 90.0         # graus por segundo
+CAMERA_RUN_MULTIPLIER = 3.0      # SHIFT multiplica a velocidade horizontal
+
 # Mar aberto
 WATER_LEVEL = 1.5
 WATER_WIDTH = 160.0
@@ -198,6 +207,7 @@ CONTROLS = [
     ("W/A/S/D", "Câmera"),
     ("Q/E", "Altura"),
     ("Setas", "Rotação"),
+    ("SHIFT", "Corrida"),
     ("ESPAÇO", "Pausa"),
     ("R", "Reiniciar"),
     ("F1", "HUD"),
