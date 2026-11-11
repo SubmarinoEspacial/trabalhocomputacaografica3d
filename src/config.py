@@ -2,6 +2,8 @@
 import math
 import sys
 
+import pygame
+
 
 def _qualidade_da_linha_de_comando():
     argumentos = sys.argv[1:]
@@ -18,6 +20,24 @@ def _qualidade_da_linha_de_comando():
 
 
 _PERFIS_QUALIDADE = {
+    # minima: modo seguro para máquinas fracas ou com folga na apresentação.
+    # Mínimo de 2 ondas na água: a GPU sempre soma u_wave0/u_wave1 e a CPU
+    # segue (C.WATER_WAVES + C.WATER_DETAIL_WAVES)[:WATER_WAVE_COUNT].
+    "minima": {
+        "SHADOW_RESOLUTION": 512,
+        "SHADOW_PCF_SAMPLES": 1,
+        "WATER_GRID_RESOLUTION": 40,
+        "WATER_WAVE_COUNT": 2,
+        "MAX_POINT_LIGHTS": 1,
+        "POST_BLOOM_ENABLED": False,
+        "RENDER_SCALE": 0.85,
+        "ROUND_SEGMENTS": 6,
+        "ROUND_RINGS": 4,
+        "SMALL_SEGMENTS": 4,
+        "SMALL_RINGS": 3,
+        "DISC_RING_LIGHTS": 4,
+        "DETALHES_COMPLETOS": False,
+    },
     # baixa: menos sombras, água e luzes; indicada para máquinas fracas.
     "baixa": {
         "SHADOW_RESOLUTION": 1024,
@@ -70,7 +90,7 @@ _PERFIS_QUALIDADE = {
 
 QUALITY = _qualidade_da_linha_de_comando()
 if QUALITY not in _PERFIS_QUALIDADE:
-    raise SystemExit("--quality/--qualidade deve ser: baixa, media ou alta")
+    raise SystemExit("--quality/--qualidade deve ser: minima, baixa, media ou alta")
 
 
 def aplicar_perfil_qualidade(nome):
@@ -85,6 +105,41 @@ def aplicar_perfil_qualidade(nome):
 
 
 aplicar_perfil_qualidade(QUALITY)
+
+# KEYMAP centraliza as teclas em um único lugar: main.py e camera_rig.py leem
+# os códigos daqui. Os modificadores (corrida/alt) são lidos via get_mods().
+# O texto exibido no HUD fica na lista CONTROLS mais abaixo.
+KEYMAP = {
+    "pausa": pygame.K_SPACE,
+    "reset": pygame.K_r,
+    "apresentacao": pygame.K_l,
+    "hud": pygame.K_F1,
+    "tempos": pygame.K_F2,
+    "qualidade_baixa": pygame.K_F3,
+    "qualidade_media": pygame.K_F4,
+    "qualidade_alta": pygame.K_F5,
+    "qualidade_minima": pygame.K_x,
+    "controles": pygame.K_h,
+    "sobre": pygame.K_i,
+    "limite_fps": pygame.K_v,
+    "alvo_fps": pygame.K_t,
+    "adaptativo": pygame.K_g,
+    "tela_cheia": pygame.K_F11,
+    "enter": pygame.K_RETURN,
+    "enter_numerico": pygame.K_KP_ENTER,
+    "frente": pygame.K_w,
+    "tras": pygame.K_s,
+    "direita": pygame.K_d,
+    "esquerda": pygame.K_a,
+    "subir": pygame.K_q,
+    "descer": pygame.K_e,
+    "girar_esquerda": pygame.K_LEFT,
+    "girar_direita": pygame.K_RIGHT,
+    "olhar_cima": pygame.K_UP,
+    "olhar_baixo": pygame.K_DOWN,
+    "corrida": pygame.KMOD_SHIFT,   # modificador: speed ×CAMERA_RUN_MULTIPLIER
+    "alt": pygame.KMOD_ALT,         # modificador do combo Alt+Enter (tela cheia)
+}
 
 # Atmosfera noturna
 SKY_COLOR = (0.002, 0.006, 0.018, 1.0)   # clear color; o domo cobre a tela
@@ -205,15 +260,18 @@ PRESENT_VEHICLE_EXPOSURE = 1.15             # exposição extra só dos veículo
 # Mantemos uma única fonte de verdade — README e HUD leem desta lista.
 CONTROLS = [
     ("W/A/S/D", "Câmera"),
-    ("Q/E", "Altura"),
+    ("Q/E", "Subir/descer"),
     ("Setas", "Rotação"),
     ("SHIFT", "Corrida"),
     ("ESPAÇO", "Pausa"),
     ("R", "Reiniciar"),
     ("F1", "HUD"),
-    ("F2/F4/F5", "Perfis"),
-    ("F3", "Tempos"),
-    ("F11/Alt+Enter", "Tela"),
+    ("F2", "Tempos"),
+    ("F3", "Baixa"),
+    ("F4", "Média"),
+    ("F5", "Alta"),
+    ("X", "Mínima"),
+    ("F11", "Tela"),
     ("ESC", "Sair/sobre"),
     ("H", "Controles"),
     ("I", "Sobre"),

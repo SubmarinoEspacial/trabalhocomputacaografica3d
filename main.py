@@ -100,21 +100,24 @@ class Aplicacao(Base):
 
         self.pausado = False
         self.tempoAnimacao = 0.0
-        self._espaco_anterior = False
-        self._r_anterior = False
-        self._f3_anterior = False
-        self._l_anterior = False
-        self._f5_anterior = False
-        self._h_anterior = False
-        self._i_anterior = False
-        self._v_anterior = False
-        self._f1_anterior = False
-        self._f2_anterior = False
-        self._f4_anterior = False
-        self._f11_anterior = False
+        # Estado anterior de cada tecla de função (detecção de borda por quadro).
+        self._pausa_anterior = False
+        self._reset_anterior = False
+        self._tempos_anterior = False
+        self._apresentacao_anterior = False
+        self._qualidade_baixa_anterior = False
+        self._qualidade_media_anterior = False
+        self._qualidade_alta_anterior = False
+        self._qualidade_minima_anterior = False
+        self._controles_anterior = False
+        self._sobre_anterior = False
+        self._limite_fps_anterior = False
+        self._hud_anterior = False
+        self._tela_cheia_anterior = False
         self._alt_enter_anterior = False
-        self._t_anterior = False
-        self._g_anterior = False
+        self._alvo_fps_anterior = False
+        self._adaptativo_anterior = False
+        self._hud_refresh_pendente = False
         self._frames_perfil = 0
         self._ultima_impressao = time.perf_counter()
         self._acumulos = {
@@ -255,33 +258,43 @@ class Aplicacao(Base):
         self.hud = Hud(self.largura, self.altura)
         pygame.mouse.set_visible(True)
 
-    def _trocar_perfil_qualidade(self, nome):
-        """Aplica um perfil e recria sombra/cena com os novos parâmetros."""
-        if nome == C.QUALITY:
-            return
+    def _selecionar_perfil_manual(self, nome):
+        """Escolha manual (F3/F4/F5/X): fixa o perfil e desliga o adaptativo.
+
+        Aplica na hora tudo o que o perfil controla por uniforms/flags
+        (escala de render, PCF, ondas da água, luzes pontuais e bloom) e
+        recria só o mapa de sombra quando a resolução muda (o tamanho do
+        depth map é fixo no FBO). Grade da água e tesselação dos modelos
+        não mudam em execução; valem no próximo arranque. Funciona com a
+        animação pausada, com o HUD aberto e em tela cheia.
+        """
         C.aplicar_perfil_qualidade(nome)
-        limitador_anterior = self.hud.limitador_ativo
-        self._criar_sombra()
-        self._criar_mundo()
-        # O HUD é recriado; preserva o estado do limitador escolhido com V.
-        self.hud.limitador_ativo = limitador_anterior
-        self.frame_limit = C.TARGET_FPS if limitador_anterior else 0
-        # A escala do perfil volta ao padrão e a escada adaptativa é recalculada.
+        if self.shadow_map.resolution != C.SHADOW_RESOLUTION:
+            # Só o depth map é recriado; a cena e a malha da água não são tocadas.
+            self._criar_sombra()
         if hasattr(self, "postprocess"):
             self.postprocess.set_render_scale(C.RENDER_SCALE)
         if hasattr(self, "qualidade_adaptativa"):
+            # Manual = adaptativo desligado; a base volta ao degrau zero.
+            self.qualidade_adaptativa.ativo = False
             self.qualidade_adaptativa.recarregar_base()
-        self.tempoAnimacao = 0.0
-        self.pausado = False
+        rotulo = {
+            "minima": "mínima",
+            "baixa": "baixa",
+            "media": "média",
+            "alta": "alta",
+        }.get(C.QUALITY, C.QUALITY)
+        self.hud.mostrar_mensagem(f"Qualidade: {rotulo}")
+        self._hud_refresh_pendente = True
         self._zerar_perfil()
-        gc.collect()
-        gc.freeze()
-        pygame.display.set_caption(
-            f"Validacao OpenGL | Perfil {C.QUALITY} | F3 mostra o perfil"
+        pygame.display.set_caption(f"Validacao OpenGL | Perfil {C.QUALITY} | F2 tempos")
+        print(
+            f"Qualidade: {rotulo} (manual) | adaptativo desligado (G religa)",
+            flush=True,
         )
 
     def _preparar_perfilamento(self):
-        """Ativa F3/`--profile` e mede o custo de Mesh.draw sem mudar a cena."""
+        """Ativa F2/`--profile` e mede o custo de Mesh.draw sem mudar a cena."""
         self.perfil_ativo = any(
             arg in ("--profile", "--perfilar") for arg in sys.argv[1:]
         )
@@ -346,11 +359,11 @@ class Aplicacao(Base):
         """Restaura ou aplica o sufixo de FPS no título da janela."""
         titulo = "Validacao OpenGL"
         if ativa:
-            titulo += " | F3"
+            titulo += " | F2"
         pygame.display.set_caption(titulo)
 
     def _zerar_perfil(self):
-        """Recomeça a média para a próxima leitura de F3."""
+        """Recomeça a média para a próxima leitura de F2."""
         self._frames_perfil = 0
         self._ultima_impressao = time.perf_counter()
         for chave in self._acumulos:
@@ -380,7 +393,7 @@ class Aplicacao(Base):
             "luzes": luzes,
         }
         texto = (
-            f"F3 {fps:.1f} | frame {contadores['frame'] / frames * 1000:.1f} ms | "
+            f"F2 {fps:.1f} | frame {contadores['frame'] / frames * 1000:.1f} ms | "
             f"logica {contadores['logica'] / frames * 1000:.2f} | "
             f"arvore {contadores['arvore'] / frames * 1000:.2f} | "
             f"sombra {contadores['sombra'] / frames * 1000:.2f} | "
@@ -487,99 +500,102 @@ class Aplicacao(Base):
         teclas = pygame.key.get_pressed()
         inicio_frame = time.perf_counter()
 
-        espaco_pressionado = bool(teclas[pygame.K_SPACE])
-        if espaco_pressionado and not self._espaco_anterior:
+        pausa_pressionado = bool(teclas[C.KEYMAP["pausa"]])
+        if pausa_pressionado and not self._pausa_anterior:
             self.pausado = not self.pausado
-        self._espaco_anterior = espaco_pressionado
+        self._pausa_anterior = pausa_pressionado
 
-        r_pressionado = bool(teclas[pygame.K_r])
-        if r_pressionado and not self._r_anterior:
+        reset_pressionado = bool(teclas[C.KEYMAP["reset"]])
+        if reset_pressionado and not self._reset_anterior:
             self.controlador.reset()
             self.camera_rig.reset()
-        self._r_anterior = r_pressionado
+        self._reset_anterior = reset_pressionado
 
-        l_pressionado = bool(teclas[pygame.K_l])
-        if l_pressionado and not self._l_anterior:
+        apresentacao_pressionado = bool(teclas[C.KEYMAP["apresentacao"]])
+        if apresentacao_pressionado and not self._apresentacao_anterior:
             C.PRESENT_MODE = 0 if C.PRESENT_MODE else 1
             estado = "ligado" if C.PRESENT_MODE else "desligado"
             print(f"Modo apresentação dos veículos: {estado} (L alterna)", flush=True)
-        self._l_anterior = l_pressionado
+        self._apresentacao_anterior = apresentacao_pressionado
 
-        f3_pressionado = bool(teclas[pygame.K_F3])
-        if f3_pressionado and not self._f3_anterior:
+        tempos_pressionado = bool(teclas[C.KEYMAP["tempos"]])
+        if tempos_pressionado and not self._tempos_anterior:
             self.perfil_ativo = not self.perfil_ativo
             self._zerar_perfil()
+            self._hud_refresh_pendente = True
             self._atualizar_titulo(self.perfil_ativo)
-        self._f3_anterior = f3_pressionado
+        self._tempos_anterior = tempos_pressionado
 
-        f1_pressionado = bool(teclas[pygame.K_F1])
-        if f1_pressionado and not self._f1_anterior:
+        hud_pressionado = bool(teclas[C.KEYMAP["hud"]])
+        if hud_pressionado and not self._hud_anterior:
             oculto = self.hud.alternar_hud()
             print("HUD oculto (F1 mostra de novo)" if oculto else "HUD visível", flush=True)
-        self._f1_anterior = f1_pressionado
+        self._hud_anterior = hud_pressionado
 
-        f5_pressionado = bool(teclas[pygame.K_F5])
-        if f5_pressionado and not self._f5_anterior:
-            self._trocar_perfil_qualidade("baixa")
-        self._f5_anterior = f5_pressionado
+        # F3/F4/F5/X fixam o perfil de qualidade (escolha manual; desliga o adaptativo).
+        for acao, perfil in (
+            ("qualidade_baixa", "baixa"),
+            ("qualidade_media", "media"),
+            ("qualidade_alta", "alta"),
+            ("qualidade_minima", "minima"),
+        ):
+            pressionado = bool(teclas[C.KEYMAP[acao]])
+            atributo = f"_{acao}_anterior"
+            if pressionado and not getattr(self, atributo):
+                self._selecionar_perfil_manual(perfil)
+            setattr(self, atributo, pressionado)
 
-        h_pressionado = bool(teclas[pygame.K_h])
-        if h_pressionado and not self._h_anterior:
+        controles_pressionado = bool(teclas[C.KEYMAP["controles"]])
+        if controles_pressionado and not self._controles_anterior:
             self.hud.alternar_controles()
-        self._h_anterior = h_pressionado
+        self._controles_anterior = controles_pressionado
 
-        i_pressionado = bool(teclas[pygame.K_i])
-        if i_pressionado and not self._i_anterior:
+        sobre_pressionado = bool(teclas[C.KEYMAP["sobre"]])
+        if sobre_pressionado and not self._sobre_anterior:
             self.hud.alternar_sobre()
-        self._i_anterior = i_pressionado
+        self._sobre_anterior = sobre_pressionado
 
-        v_pressionado = bool(teclas[pygame.K_v])
-        if v_pressionado and not self._v_anterior:
+        limite_pressionado = bool(teclas[C.KEYMAP["limite_fps"]])
+        if limite_pressionado and not self._limite_fps_anterior:
             ativo = self.hud.alternar_limite()
             self.frame_limit = C.TARGET_FPS if ativo else 0
+            self._hud_refresh_pendente = True
             print(
                 f"Limitador de FPS: {C.TARGET_FPS} FPS (clock.tick)"
                 if ativo else "Limitador de FPS: sem limite",
                 flush=True,
             )
-        self._v_anterior = v_pressionado
+        self._limite_fps_anterior = limite_pressionado
 
-        t_pressionado = bool(teclas[pygame.K_t])
-        if t_pressionado and not self._t_anterior:
+        alvo_pressionado = bool(teclas[C.KEYMAP["alvo_fps"]])
+        if alvo_pressionado and not self._alvo_fps_anterior:
             C.TARGET_FPS = 120 if C.TARGET_FPS == 60 else 60
             if self.hud.limitador_ativo:
                 self.frame_limit = C.TARGET_FPS
+            self._hud_refresh_pendente = True
             print(f"Alvo de FPS: {C.TARGET_FPS} (T alterna 60/120)", flush=True)
-        self._t_anterior = t_pressionado
+        self._alvo_fps_anterior = alvo_pressionado
 
-        g_pressionado = bool(teclas[pygame.K_g])
-        if g_pressionado and not self._g_anterior:
+        adaptativo_pressionado = bool(teclas[C.KEYMAP["adaptativo"]])
+        if adaptativo_pressionado and not self._adaptativo_anterior:
             ativo = self.qualidade_adaptativa.alternar()
-            self.qualidade_adaptativa.ativo = ativo
+            self._hud_refresh_pendente = True
             print(
                 f"Qualidade adaptativa: {'ligada' if ativo else 'desligada'} "
                 f"(G alterna; nível {self.qualidade_adaptativa.nivel})",
                 flush=True,
             )
-        self._g_anterior = g_pressionado
+        self._adaptativo_anterior = adaptativo_pressionado
 
-        f2_pressionado = bool(teclas[pygame.K_F2])
-        if f2_pressionado and not self._f2_anterior:
-            self._trocar_perfil_qualidade("media")
-        self._f2_anterior = f2_pressionado
-
-        f4_pressionado = bool(teclas[pygame.K_F4])
-        if f4_pressionado and not self._f4_anterior:
-            self._trocar_perfil_qualidade("alta")
-        self._f4_anterior = f4_pressionado
-
-        f11_pressionado = bool(teclas[pygame.K_F11])
-        if f11_pressionado and not self._f11_anterior:
+        tela_pressionado = bool(teclas[C.KEYMAP["tela_cheia"]])
+        if tela_pressionado and not self._tela_cheia_anterior:
             self._alternar_tela_cheia()
-        self._f11_anterior = f11_pressionado
+        self._tela_cheia_anterior = tela_pressionado
 
-        alt_pressionado = bool(pygame.key.get_mods() & pygame.KMOD_ALT)
-        enter_pressionado = bool(teclas[pygame.K_RETURN] or teclas[pygame.K_KP_ENTER])
+        alt_pressionado = bool(pygame.key.get_mods() & C.KEYMAP["alt"])
+        enter_pressionado = bool(
+            teclas[C.KEYMAP["enter"]] or teclas[C.KEYMAP["enter_numerico"]]
+        )
         alt_enter_pressionado = alt_pressionado and enter_pressionado
         if alt_enter_pressionado and not self._alt_enter_anterior:
             self._alternar_tela_cheia()
@@ -629,6 +645,8 @@ class Aplicacao(Base):
         # O HUD vai por cima do pós-processamento, com FPS e estado atualizados.
         estado_nome = self.controlador.estado.name if self.controlador else "?"
         inicio_hud = time.perf_counter()
+        forcar_refresh = self._hud_refresh_pendente
+        self._hud_refresh_pendente = False
         self.hud.atualizar(
             self.deltaTime,
             estado_nome,
@@ -646,6 +664,7 @@ class Aplicacao(Base):
             qualidade=C.QUALITY,
             escala=C.RENDER_SCALE,
             adaptativo=self.qualidade_adaptativa.ativo,
+            forcar_refresh=forcar_refresh,
         )
         self.hud.tratar_mouse(pygame.mouse.get_pos(), pygame.mouse.get_pressed()[0])
         self.hud.desenhar()

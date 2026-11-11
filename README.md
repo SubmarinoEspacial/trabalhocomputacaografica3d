@@ -31,7 +31,7 @@ python -m venv .venv
 pip install -r requirements.txt
 python main.py
 ```
-Teste da máquina de estados (sem OpenGL): `python -m tests.test_abducao`
+Testes sem OpenGL: `python -m tests.test_abducao` (ciclo) e `python -m tests.test_camera` (vetores da câmera)
 
 ## Controles
 A mesma lista pode ser exibida no HUD com H e é definida em `src/config.py` (`CONTROLS`).
@@ -45,10 +45,11 @@ A mesma lista pode ser exibida no HUD com H e é definida em `src/config.py` (`C
 | ESPAÇO | Pausar / retomar a animação |
 | R | Reiniciar a interação e restaurar a câmera inicial |
 | F1 | Mostrar / ocultar todo o HUD |
-| F2 | Perfil de qualidade média |
-| F3 | Mostrar / ocultar os tempos (FPS, lógica, sombra, render) |
-| F4 | Perfil de qualidade alta |
-| F5 | Perfil de qualidade baixa |
+| F2 | Mostrar / ocultar os tempos por etapa (FPS, lógica, sombra, passe principal, pós, HUD, draw calls) |
+| F3 | Perfil de qualidade baixa |
+| F4 | Perfil de qualidade média |
+| F5 | Perfil de qualidade alta |
+| X | Perfil de qualidade mínima (seguro) |
 | F11 / Alt+Enter | Alternar janela / tela cheia |
 | ESC | Sair da tela cheia / fechar o painel Sobre |
 | H | Mostrar / ocultar a lista de controles |
@@ -58,11 +59,17 @@ A mesma lista pode ser exibida no HUD com H e é definida em `src/config.py` (`C
 | T | Alterna o alvo entre 60 e 120 FPS |
 | G | Liga / desliga a qualidade adaptativa |
 
+A escolha manual (F3/F4/F5/X) fixa o perfil e **desliga a qualidade adaptativa** — o HUD mostra
+`Qualidade: … (manual)`; com G ligado, mostra `Qualidade: … (auto)`. A troca vale na hora, inclusive
+com a animação pausada, e uma mensagem curta (`Qualidade: baixa` etc.) aparece no HUD por ~1,5 s.
+Grade da água, tesselação dos modelos, luzes do anel do disco e detalhes só mudam no arranque;
+o mapa de sombra é recriado na hora quando a resolução do perfil difere.
+
 O HUD é discreto: uma linha com FPS, tempo de quadro, estado e alvo no canto superior esquerdo,
-seguida de qualidade/escala e do modo adaptativo. A lista de controles fica escondida por padrão
+seguida de qualidade (auto/manual) e escala. A lista de controles fica escondida por padrão
 (dica `H controles | I sobre | F1 ocultar`); H abre as duas colunas e F1 oculta todo o HUD. O botão
 "? Sobre" no canto superior direito abre um painel pequeno com resumo, sequência, técnicas, créditos
-e referência (também por I; fecha por I, ESC, botão Fechar ou clique fora). Com F3, o HUD acrescenta
+e referência (também por I; fecha por I, ESC, botão Fechar ou clique fora). Com F2, o HUD acrescenta
 o diagnóstico (GL, janela, sombra, PCF, luzes, draw calls, água e tempos por etapa). O VSync não é
 recriado após a janela existir — V controla o `clock.tick` e T troca o alvo 60/120.
 
@@ -82,13 +89,16 @@ framebuffer menor e ampliar para a tela inteira; a qualidade adaptativa usa `0.8
 quando o FPS fica abaixo de 90% do alvo por 2 s. O mapa de sombra continua independente dessa escala.
 
 ## Desempenho e perfis de qualidade
-O padrão é `media`; também é possível escolher no arranque com `--quality baixa|media|alta`
-(`--qualidade` também funciona). F2/F4/F5 trocam o perfil em tempo real, recriando a sombra
-e a cena e reiniciando a sequência; o estado do limitador escolhido com V é preservado.
+O padrão é `media`; também é possível escolher no arranque com `--quality minima|baixa|media|alta`
+(`--qualidade` também funciona). F3/F4/F5/X trocam o perfil em tempo real, aplicando na hora tudo o
+que o perfil controla por uniforms/flags — escala de render, resolução do mapa de sombra (o depth map
+é recriado), amostras do PCF, ondas da água, luzes pontuais e bloom. Grade da água (`WATER_GRID_RESOLUTION`),
+tesselação dos modelos, luzes do anel do disco e detalhes não mudam em execução; valem no próximo arranque.
+A escolha manual desliga o modo adaptativo (G religa) e a troca funciona também com a animação pausada.
 T alterna o alvo entre 60 e 120 FPS e G liga/desliga a qualidade adaptativa. A janela usa
 `WINDOW_SIZE` por padrão.
 
-Medição na Intel Iris Xe (Mesa 25.2.8, GL 4.6 Compatibility), F3 ligado, adaptação desligada
+Medição na Intel Iris Xe (Mesa 25.2.8, GL 4.6 Compatibility), F2 ligado, adaptação desligada
 e V sem limite para medir a capacidade real:
 
 | Perfil | Janela 960×540 (alvo 60) | Janela sem limite | Tela cheia 1920×1080 (alvo 60) | Tela cheia sem limite |
@@ -105,9 +115,14 @@ caiu para ~1,8–2,3 ms e a sombra para ~0,65–0,8 ms na janela; a tela cheia e
 
 | Perfil | Sombra | PCF | Água | Ondas | Luzes pontuais | Detalhes | Bloom | Geometria |
 |---|---|---|---|---|---|---|---|---|
+| `minima` | 512 | 1 amostra | 40 × 40 | 2 | 1 | ocultados; luzes do anel: 4 | desligado | 6/4 segmentos/anéis |
 | `baixa` | 1024 | 1 amostra | 80 × 80 | 2 | 2 | ocultados | desligado | 8/6 segmentos/anéis |
 | `media` | 1024 | 4 amostras (2 × 2) | 80 × 80 | 3 | 2 | ocultados; luzes do anel: 8 | desligado | 12/8 segmentos/anéis |
 | `alta` | 2048 | 9 amostras (3 × 3) | 200 × 200 | 5 | 4 | completos; luzes do anel: 16 | ligado em 1/4 de resolução | 32/16 segmentos/anéis |
+
+O `minima` ainda reduz `RENDER_SCALE` para 0,85 (a qualidade adaptativa pode baixar para 0,70 e 0,50)
+e é pensado para máquinas fracas. Parâmetros dependentes de malha (grade da água, tesselação, luzes do
+anel do disco e detalhes) valem no arranque; os demais aplicam-se na hora.
 
 No `media`, o total aproximado de meshes visíveis ficou em 84–89 (somente os modelos
 principais entram no passe de sombra, 8 draws); em `alta`, 122–127. O alvo original de

@@ -59,14 +59,14 @@ class CameraRig:
         if teclas is None:
             teclas = pygame.key.get_pressed()
 
-        frente = float(self._pressionada(teclas, pygame.K_w)) - float(
-            self._pressionada(teclas, pygame.K_s)
+        frente = float(self._pressionada(teclas, C.KEYMAP["frente"])) - float(
+            self._pressionada(teclas, C.KEYMAP["tras"])
         )
-        lateral = float(self._pressionada(teclas, pygame.K_d)) - float(
-            self._pressionada(teclas, pygame.K_a)
+        lateral = float(self._pressionada(teclas, C.KEYMAP["direita"])) - float(
+            self._pressionada(teclas, C.KEYMAP["esquerda"])
         )
-        vertical = float(self._pressionada(teclas, pygame.K_q)) - float(
-            self._pressionada(teclas, pygame.K_e)
+        vertical = float(self._pressionada(teclas, C.KEYMAP["subir"])) - float(
+            self._pressionada(teclas, C.KEYMAP["descer"])
         )
 
         forward, right, _ = calcular_vetores_movimento(self.yaw, self.pitch)
@@ -89,11 +89,11 @@ class CameraRig:
         self.y += vertical * velocidade * delta
 
         # Yaw positivo gira o olhar para a esquerda; por isso LEFT soma e RIGHT subtrai.
-        giro_horizontal = float(self._pressionada(teclas, pygame.K_LEFT)) - float(
-            self._pressionada(teclas, pygame.K_RIGHT)
+        giro_horizontal = float(self._pressionada(teclas, C.KEYMAP["girar_esquerda"])) - float(
+            self._pressionada(teclas, C.KEYMAP["girar_direita"])
         )
-        giro_vertical = float(self._pressionada(teclas, pygame.K_UP)) - float(
-            self._pressionada(teclas, pygame.K_DOWN)
+        giro_vertical = float(self._pressionada(teclas, C.KEYMAP["olhar_cima"])) - float(
+            self._pressionada(teclas, C.KEYMAP["olhar_baixo"])
         )
         passo_rotacao = self.velocidade_rotacao * delta
         self.yaw += giro_horizontal * passo_rotacao
@@ -115,7 +115,7 @@ class CameraRig:
     def _shift_pressionado(teclas):
         """Detecta SHIFT por mods do Pygame; em fakes simples, devolve False."""
         try:
-            return bool(pygame.key.get_mods() & pygame.KMOD_SHIFT)
+            return bool(pygame.key.get_mods() & C.KEYMAP["corrida"])
         except Exception:
             return False
 

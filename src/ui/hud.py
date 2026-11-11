@@ -134,6 +134,10 @@ class Hud:
         self._fechar_tex_tamanho = (0, 0)
         self._sobre_hover = False
         self._mouse_anterior = False
+        # Toast efêmero (ex.: "Qualidade: baixa"); fica ~1,5 s visível.
+        self._mensagem_tex = None
+        self._mensagem_tex_tamanho = (0, 0)
+        self._mensagem_restante = 0.0
         self._construir_fontes()
         self._construir_texturas_estaticas()
 
@@ -168,6 +172,9 @@ class Hud:
         self.altura = int(altura)
         if self.largura <= 0 or self.altura <= 0:
             return
+        _liberar_textura(self._mensagem_tex)
+        self._mensagem_tex = None
+        self._mensagem_restante = 0.0
         self._construir_fontes()
         self._liberar_estaticas()
         _liberar_textura(self._fps_tex)
@@ -318,9 +325,12 @@ class Hud:
         qualidade=None,
         escala=None,
         adaptativo=None,
+        forcar_refresh=False,
     ):
         """Atualiza a média móvel de FPS; reconstrói a textura a cada 0,5 s."""
         self._relogio_acc += deltaTime
+        if self._mensagem_restante > 0.0:
+            self._mensagem_restante = max(0.0, self._mensagem_restante - deltaTime)
         self._quadros_acc += 1
         self._proximo_refresh += deltaTime
         if alvo_fps is not None:
@@ -341,7 +351,7 @@ class Hud:
                     self._timings_ema[chave] = valor
                 else:
                     self._timings_ema[chave] = 0.85 * anterior + 0.15 * valor
-        if self._proximo_refresh >= 0.5:
+        if self._proximo_refresh >= 0.5 or forcar_refresh:
             elapsed = self._relogio_acc
             self._fps = self._quadros_acc / max(elapsed, 1e-6)
             self._frame_ms = 1000.0 * elapsed / max(1, self._quadros_acc)
@@ -374,6 +384,14 @@ class Hud:
     def sobre_aberto(self):
         return self.mostrar_sobre
 
+    def mostrar_mensagem(self, texto, duracao=1.5):
+        """Exibe um toast curto no topo da janela por ~1,5 s (teclas de perfil)."""
+        _liberar_textura(self._mensagem_tex)
+        self._mensagem_tex, self._mensagem_tex_tamanho = self._render_simples(
+            texto, self.f_negrito, _COR_TECLA,
+        )
+        self._mensagem_restante = float(duracao)
+
     def _cor_fps(self):
         if self._fps >= 55.0:
             return _COR_FPS_OK
@@ -382,7 +400,7 @@ class Hud:
         return _COR_FPS_RUIM
 
     def _reconstruir_fps_tex(self, estado_nome, perfil_ativo):
-        """Monta a linha compacta de FPS e, com F3, o diagnóstico resumido."""
+        """Monta a linha compacta de FPS e, com F2, o diagnóstico resumido."""
         pad = self._px(0.003)
         linhas = []
         # Primeira linha: métricas principais em uma única faixa.
@@ -392,12 +410,12 @@ class Hud:
             self.f_negrito,
             self._cor_fps(),
         ))
-        rotulos = {"baixa": "baixa", "media": "média", "alta": "alta"}
+        rotulos = {"minima": "mínima", "baixa": "baixa", "media": "média", "alta": "alta"}
         qualidade = rotulos.get(str(self._status["qualidade"]), self._status["qualidade"])
         escala = self._status["escala"]
-        adaptativo = "on" if self._status["adaptativo"] else "off"
+        modo = "auto" if self._status["adaptativo"] else "manual"
         linhas.append((
-            f"Qualidade: {qualidade}, escala {escala:.2f} | Adaptativo: {adaptativo}",
+            f"Qualidade: {qualidade} ({modo}), escala {escala:.2f}",
             self.f_texto,
             _COR_SUAVE,
         ))
@@ -588,6 +606,16 @@ class Hud:
             self._quad(fx, fy, fw, fh, _COR_FUNDO_FECHAR)
             tw, th = self._fechar_tex_tamanho
             self._quad_textura(self._fechar_tex, fx + (fw - tw) / 2.0, fy + (fh - th) / 2.0, tw, th)
+
+        # Toast de troca de perfil (topo central); some sozinho após ~1,5 s.
+        if self._mensagem_restante > 0.0 and self._mensagem_tex is not None:
+            tw, th = self._mensagem_tex_tamanho
+            pad = self._px(0.004)
+            x = (self.largura - tw) / 2.0
+            alpha = min(1.0, self._mensagem_restante / 0.4)
+            cor_fundo = (*_COR_FUNDO[:3], _COR_FUNDO[3] * alpha)
+            self._quad(x - pad, margem - pad, tw + 2 * pad, th + 2 * pad, cor_fundo)
+            self._quad_textura(self._mensagem_tex, x, margem, tw, th, alpha=alpha)
 
         # Restaura o estado do pipeline para a cena no próximo quadro.
         glDisable(GL_TEXTURE_2D)
