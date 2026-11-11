@@ -1,3 +1,4 @@
-pygame>=2.5
-PyOpenGL>=3.1.7
-numpy>=1.24
+# Versões testadas no ambiente (venv local, 2026-11); pip freeze apenas destas três bibliotecas.
+pygame==2.6.1
+PyOpenGL==3.1.10
+numpy==2.5.4

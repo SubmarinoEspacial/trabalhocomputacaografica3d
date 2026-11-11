@@ -70,7 +70,7 @@ _PERFIS_QUALIDADE = {
         "DISC_RING_LIGHTS": 8,
         "DETALHES_COMPLETOS": False,
     },
-    # alta: qualidade visual próxima à versão anterior.
+    # alta: qualidade visual próxima à versão anterior (tesselação reforçada em 2026-11-11).
     "alta": {
         "SHADOW_RESOLUTION": 2048,
         "SHADOW_PCF_SAMPLES": 9,
@@ -79,10 +79,10 @@ _PERFIS_QUALIDADE = {
         "MAX_POINT_LIGHTS": 4,
         "POST_BLOOM_ENABLED": True,
         "RENDER_SCALE": 1.0,
-        "ROUND_SEGMENTS": 32,
-        "ROUND_RINGS": 16,
-        "SMALL_SEGMENTS": 12,
-        "SMALL_RINGS": 6,
+        "ROUND_SEGMENTS": 48,
+        "ROUND_RINGS": 24,
+        "SMALL_SEGMENTS": 24,
+        "SMALL_RINGS": 12,
         "DISC_RING_LIGHTS": 16,
         "DETALHES_COMPLETOS": True,
     },
@@ -318,6 +318,8 @@ SUB_TOWER_TOP = 1.85
 SUB_START = (-11.0, WATER_LEVEL - SUB_DEPTH, 0.0)
 SUB_SPEED = 1.3
 SUB_SPEED_FLEE = 2.2
+SUB_APPROACH_SPEED = 3.0    # m/s: avanço até o ponto sob o disco após emergir
+SUB_TURN_SPEED = 45.0       # graus por segundo; giro suave do yaw na direção do disco
 PROP_SPEED = 6.0            # rad/s
 SUBMERGED_TIME = 2.5
 EMERGE_TIME = 3.2

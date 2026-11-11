@@ -24,6 +24,10 @@ SEQUENCIA_ESPERADA = [
 ]
 
 
+def distancia_horizontal(a, b):
+    return math.hypot(float(a[0] - b[0]), float(a[2] - b[2]))
+
+
 def rodar(delta_time, max_steps=30000):
     submarino, disco = Submarino(), DiscoVoador()
     controlador = AbducaoController(submarino, disco)
@@ -33,6 +37,11 @@ def rodar(delta_time, max_steps=30000):
     glow_em_abducao = False
     escalou_ate_minimo = False
     erro_superficie_maximo = 0.0
+    posicao_deteccao = None            # onde o submarino estava ao entrar em DETECCAO
+    percurso_aproximacao = 0.0         # deslocamento horizontal do submarino em DETECCAO
+    erro_yaw_minimo = math.inf         # menor erro angular em DETECCAO (rad)
+    distancia_ao_posicionar = math.inf # distância horizontal sub→disco ao entrar em POSICIONAMENTO
+    helice_parada_em_inspecao = False  # prop_speed ao entrar em INSPECAO
 
     for _ in range(max_steps):
         tempo_animacao += delta_time
@@ -42,7 +51,30 @@ def rodar(delta_time, max_steps=30000):
 
         if not estados or estados[-1] is not controlador.estado:
             estados.append(controlador.estado)
+            if controlador.estado is Estado.DETECCAO:
+                posicao_deteccao = (float(submarino.position[0]), float(submarino.position[2]))
+                erro_yaw_minimo = math.inf
+            if controlador.estado is Estado.POSICIONAMENTO:
+                distancia_ao_posicionar = distancia_horizontal(submarino.position, disco.position)
+            if controlador.estado is Estado.INSPECAO:
+                helice_parada_em_inspecao = submarino.prop_speed <= 0.01
         if controlador.estado is Estado.DETECCAO:
+            if posicao_deteccao is not None:
+                percurso_aproximacao = max(
+                    percurso_aproximacao,
+                    math.hypot(
+                        float(submarino.position[0]) - posicao_deteccao[0],
+                        float(submarino.position[2]) - posicao_deteccao[1],
+                    ),
+                )
+            distancia_hd = distancia_horizontal(disco.position, submarino.position)
+            if distancia_hd > 0.5:
+                alvo_yaw = math.atan2(
+                    -float(disco.position[2] - submarino.position[2]),
+                    float(disco.position[0] - submarino.position[0]),
+                )
+                erro_yaw = abs((alvo_yaw - submarino.yaw + math.pi) % (2.0 * math.pi) - math.pi)
+                erro_yaw_minimo = min(erro_yaw_minimo, erro_yaw)
             topo_torre = submarino.position[1] + C.SUB_TOWER_TOP * submarino.scale
             superficie = water_height(
                 submarino.position[0],
@@ -79,6 +111,10 @@ def rodar(delta_time, max_steps=30000):
     assert estados == SEQUENCIA_ESPERADA, [estado.name for estado in estados]
     assert detectou_acima_da_agua
     assert erro_superficie_maximo < 0.5, erro_superficie_maximo
+    assert percurso_aproximacao > 4.0, percurso_aproximacao
+    assert erro_yaw_minimo < 0.2, erro_yaw_minimo
+    assert distancia_ao_posicionar <= C.ARRIVE_EPS + 0.05, distancia_ao_posicionar
+    assert helice_parada_em_inspecao
     assert glow_em_abducao
     assert escalou_ate_minimo
     assert submarino.visible

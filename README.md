@@ -4,14 +4,30 @@
 - Lucas Evaristo Almeida de Paula
 - Gabriel Medeiros de Souza Costa
 
+Temas escolhidos pela dupla (sorteio dispensado pelo professor): Submarino Estilizado e Disco Voador
+
+## Contribuições individuais
+- Integrante 1: Lucas Evaristo Almeida de Paula (partes do código, modelos, shaders) — ___
+- Integrante 2: Gabriel Medeiros de Souza Costa (Documentação, slides e apresentação) — ___
+- Parte feita em conjunto: ___
+
 ## Descrição da cena e da interação
 Mar aberto noturno com lua, estrelas, neblina no horizonte, ondas procedurais,
 espuma e sombras projetadas na água. O submarino navega submerso, emerge com
-brilho emissivo, é detectado pelo disco voador, inspecionado em órbita, iluminado
-por um feixe e abduzido. O disco tem luzes emissivas brancas e brilhantes, luzes pontuais dinâmicas brancas e
-um anel de impacto na superfície; o passe final aplica bloom e vinheta. Ao final,
-a cena reinicia.
+brilho emissivo e é detectado pelo disco voador; ao romper a superfície, ajusta
+seu percurso: gira o nariz em yaw (interpolação suave por delta time) na direção
+do disco e avança até o ponto da superfície logo abaixo dele, parando ali com a
+hélice desacelerando, enquanto o disco se aproxima e se posiciona acima. Só
+depois disso o submarino é inspecionado em órbita, iluminado por um feixe e
+abduzido. O disco tem luzes emissivas brancas e brilhantes, luzes pontuais dinâmicas brancas e
+um anel de impacto na superfície; o passe final aplica vinheta sempre, e o bloom
+apenas nos perfis de qualidade que o habilitam (`alta`; `minima`, `baixa` e `media`
+rodam com `POST_BLOOM_ENABLED = False` em `src/config.py`). Ao final, a cena reinicia.
 Sequência: Submerso, Emergindo, Detecção, Posicionamento, Inspeção, Feixe, Abdução, Final.
+
+> **Nota sobre timing:** o delta time é limitado a 0,05 s por quadro (`main.py`,
+> `min(self.deltaTime, 0.05)`). Abaixo de ~20 FPS a animação desacelera em vez de dar
+> saltos; acima disso, o movimento não depende da taxa de quadros.
 
 ### Iluminação e modo apresentação
 A cena é noturna, com lua direcional, luz ambiente fria e shadow mapping. Os veículos usam, por
@@ -31,6 +47,8 @@ pip install -r requirements.txt
 python main.py
 ```
 Testes sem OpenGL: `python -m tests.test_abducao` (ciclo) e `python -m tests.test_camera` (vetores da câmera)
+
+Para regenerar as texturas procedurais (não é necessário para executar): `pip install -r requirements-dev.txt` e `python tools/generate_textures.py --force` (o script gera os PNGs com seeds fixas; ver "Fontes consultadas").
 
 ## Controles
 A mesma lista pode ser exibida no HUD com H e é definida em `src/config.py` (`CONTROLS`).
@@ -117,7 +135,11 @@ caiu para ~1,8–2,3 ms e a sombra para ~0,65–0,8 ms na janela; a tela cheia e
 | `minima` | 512 | 1 amostra | 40 × 40 | 2 | 1 | ocultados; luzes do anel: 4 | desligado | 6/4 segmentos/anéis |
 | `baixa` | 1024 | 1 amostra | 80 × 80 | 2 | 2 | ocultados | desligado | 8/6 segmentos/anéis |
 | `media` | 1024 | 4 amostras (2 × 2) | 80 × 80 | 3 | 2 | ocultados; luzes do anel: 8 | desligado | 12/8 segmentos/anéis |
-| `alta` | 2048 | 9 amostras (3 × 3) | 200 × 200 | 5 | 4 | completos; luzes do anel: 16 | ligado em 1/4 de resolução | 32/16 segmentos/anéis |
+| `alta` | 2048 | 9 amostras (3 × 3) | 200 × 200 | 5 | 4 | completos; luzes do anel: 16 | ligado em 1/4 de resolução | 48/24 e 24/12 segmentos/anéis |
+
+Os números de `alta` na tabela de medição acima foram registrados com tesselação 32/16 (e 12/6); desde
+2026-11-11 o perfil `alta` usa 48/24 (e 24/12), ficando visivelmente mais pesado — espere FPS menor
+nesse perfil. Use `media` para 60 FPS estáveis na janela.
 
 O `minima` ainda reduz `RENDER_SCALE` para 0,85 (a qualidade adaptativa pode baixar para 0,70 e 0,50)
 e é pensado para máquinas fracas. Parâmetros dependentes de malha (grade da água, tesselação, luzes do
@@ -154,10 +176,23 @@ malha é recriada.
 | Pós-processamento | `src/environment/postprocess.py`, `shaders/postprocess.vert`, `shaders/postprocess.frag` |
 | Shader / uniforms | `shaders/*.vert`, `shaders/*.frag` |
 
+### Resumo do tratamento de UV
+- **Com UV 0..1 por face e usadas com textura:** `PlaneGeometry` (fundo marinho com areia, `src/environment/mar.py` (`build_mar`); quads de espuma/esteira, `src/environment/foam.py` (`EspumaSubmarino`); anel de impacto, `src/entities/efeitos.py` (`EfeitosAbducao`)) e `BoxGeometry` (convés e chapas do submarino, `src/entities/submarino.py`; painéis do disco, `src/entities/disco_voador.py`). A repetição/deslocamento é controlada pelos uniforms `repeatUV`/`offsetUV` lidos em `shaders/material.vert` (`v_uv = vertexUV * repeatUV + offsetUV`).
+- **Sem atributo UV (`CylinderGeometry`, `SphereGeometry`, `ConeGeometry`):** as emissões não chamam `glTexCoord2f` (`framework/geometry/primitives.py`). Por isso são usadas apenas com materiais sem amostragem (casco do submarino, corpo/cúpula do disco, hélice, latão etc.) — amostrarem um sampler com `gl_MultiTexCoord0` indefinido produziria coordenadas inválidas.
+- **Grade da água:** `WaterGridGeometry` (`framework/geometry/primitives.py`) envia posição/normal/UV em VBO (stride de 8 floats); a espuma é mapeada por posição de mundo (`shaders/water.frag`, `u_foam_texture` a partir de `v_world_position.xz * u_foam_scale`), não por UV por vértice.
+- **Céu e lua:** `sky.frag` usa lookup esférico analítico (longitude/latitude a partir de `v_sky_direction` para `u_stars`; base tangente para `u_moon_texture`) — sem atributo UV.
+
 ## Fontes consultadas
 - STEMKOSKI, Lee; PASCALE, Michael. Developing graphics frameworks with Python and OpenGL. CRC Press, 2022.
-- `assets/textures/areia_beach_sandy_shore_cc0.jpg`: fotografia `Beach sandy shore seamless ground texture.jpg`, de Sisters.seamless, Wikimedia Commons, licenciada como [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) ([página do arquivo](https://commons.wikimedia.org/wiki/File:Beach_sandy_shore_seamless_ground_texture.jpg)); redimensionada para 2048 × 2048 para o fundo marinho.
-- Texturas `ceu_estrelado_procedural.png`, `lua_procedural.png`, `espuma_procedural.png`, `pintura_submarino_procedural.png`, `paineis_disco_procedural.png` e `feixe_ruido_procedural.png`: geradas proceduralmente neste projeto com Python/PIL, sem fonte externa. O histórico completo está em `docs/USO_IA.md`.
+- `assets/textures/areia_beach_sandy_shore_cc0.jpg`: fotografia `Beach sandy shore seamless ground texture.jpg`, de Sisters.seamless, Wikimedia Commons, licenciada como [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) ([página do arquivo](https://commons.wikimedia.org/wiki/File:Beach_sandy_shore_seamless_ground_texture.jpg)); redimensionada para 2048 × 2048 para o fundo marinho (`src/environment/mar.py`, `build_mar`).
+- `assets/textures/ceu_estrelado_procedural.png` (4096 × 2048): gerada por `tools/generate_textures.py` (Pillow/numpy, seed fixa); usada no domo de estrelas (`src/environment/sky.py`, `CeuNoturno`).
+- `assets/textures/lua_procedural.png`: gerada por `tools/generate_textures.py` (Pillow/numpy, seed fixa); usada como disco lunar (`src/environment/sky.py`).
+- `assets/textures/espuma_procedural.png`: gerada por `tools/generate_textures.py` (Pillow/numpy, seed fixa); usada na espuma das cristas da água e na espuma de contato/esteira do submarino (`src/environment/night_materials.py`, `src/environment/foam.py`).
+- `assets/textures/pintura_submarino_procedural.png`: gerada por `tools/generate_textures.py` (Pillow/numpy, seed fixa); usada no convés e nas chapas do submarino (`src/entities/submarino.py`).
+- `assets/textures/paineis_disco_procedural.png`: gerada por `tools/generate_textures.py` (Pillow/numpy, seed fixa); usada nos painéis do disco (`src/entities/disco_voador.py`).
+- `assets/textures/feixe_ruido_procedural.png`: gerada por `tools/generate_textures.py` (Pillow/numpy, seed fixa); usada no feixe do disco (`src/entities/disco_voador.py`).
+- Para regenerar essas imagens: `pip install -r requirements-dev.txt` e `python tools/generate_textures.py --force` (o Pillow **não** é necessário para executar o projeto; sem `--force`, arquivos existentes são pulados; `--check` valida em pasta temporária).
+- `assets/textures/concreto_teste.png` foi removido nesta entrega (arquivo sem uso no código e sem origem documentada).
 
 ## Declaração de uso de IA
-Ferramenta: opencode (modelo deepseek-v4.1-flash-free) | Finalidade: apoio na implementação, revisão e documentação | Trechos: ver `docs/USO_IA.md`.
+Ferramentas: opencode (modelos `deepseek-v4.1-flash-free` e `inkling-2-small-free`) no período de 2026-10-28 a 2026-11-11, e assistente Claude (Anthropic) em conversas externas (fora da IDE) para planejamento de etapas, redação de prompts, roteiro/slides e auditoria de requisitos; o código do repositório foi gerado e alterado pelas ferramentas da IDE listadas acima. O registro completo, por entrada, com data, ferramenta/modelo, finalidade e trechos (`arquivo → função/classe`), está em `docs/USO_IA.md`: lista unificada no topo ("Ferramentas e modelos usados") e, em cada entrada, as linhas "Data", "Ferramenta/modelo" e "Trechos"; para o uso fora da IDE, ver a seção "Uso de IA no planejamento e documentação (fora da IDE)" nesse mesmo arquivo.

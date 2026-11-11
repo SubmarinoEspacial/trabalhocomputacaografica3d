@@ -85,12 +85,21 @@ class AbducaoController:
                 self._ir_para(Estado.DETECCAO)
 
         elif e is Estado.DETECCAO:
-            sub.prop_speed = C.PROP_SPEED * 2
-            sub.position[0] += C.SUB_SPEED * 0.35 * dt
+            # O submarino ajusta o percurso: gira o nariz em yaw na direção do
+            # disco e avança até o ponto da superfície logo abaixo dele, parando
+            # ali com a hélice desacelerando; o disco, ao mesmo tempo, se aproxima
+            # e se posiciona acima. Só depois disso segue para POSICIONAMENTO.
             self._update_surface(dt, tempo_animacao)
+            self._girar_sub_para_disco(dt)
+            self._mover_sub_para_abaixo_do_disco(dt)
             self._girar_disco_para_sub()
             self._mover_disco_para_cima_do_sub(dt)
-            if np.linalg.norm(_horizontal(self._alvo_acima_do_sub() - disc.position)) <= C.DETECTION_APPROACH_RADIUS:
+            alvo = self._alvo_acima_do_sub()
+            distancia_sub = np.linalg.norm(_horizontal(disc.position - sub.position))
+            if (
+                distancia_sub <= C.ARRIVE_EPS
+                and np.linalg.norm(alvo - disc.position) <= C.DETECTION_APPROACH_RADIUS
+            ):
                 self._ir_para(Estado.POSICIONAMENTO)
 
         elif e is Estado.POSICIONAMENTO:
@@ -169,6 +178,36 @@ class AbducaoController:
     def _girar_disco_para_sub(self):
         delta = self.sub.position - self.disc.position
         self.disc.yaw = math.atan2(delta[0], -delta[2])
+
+    def _girar_sub_para_disco(self, dt):
+        """Giro suave do yaw na direção horizontal do disco (interpolação por dt)."""
+        delta = _horizontal(self.disc.position - self.sub.position)
+        distancia = np.linalg.norm(delta)
+        if distancia < C.ARRIVE_EPS:
+            # Já está abaixo do disco; evita girar sobre um alvo quase nulo.
+            return
+        # Com yaw = 0 o nariz do submarino aponta para +X (rotação sobre Y).
+        alvo = math.atan2(-delta[2], delta[0])
+        diferenca = (alvo - self.sub.yaw + math.pi) % (2.0 * math.pi) - math.pi
+        passo_maximo = math.radians(C.SUB_TURN_SPEED) * dt
+        self.sub.yaw += max(-passo_maximo, min(passo_maximo, diferenca))
+
+    def _mover_sub_para_abaixo_do_disco(self, dt):
+        """Avança até o ponto da superfície logo abaixo do disco e para ali."""
+        sub = self.sub
+        delta = _horizontal(self.disc.position - sub.position)
+        distancia = np.linalg.norm(delta)
+        if distancia <= C.ARRIVE_EPS:
+            # Chegou: a hélice desacelera até parar (mesma taxa do POSICIONAMENTO).
+            sub.prop_speed = max(0.0, sub.prop_speed - 8.0 * dt)
+            return
+        fracao = min(1.0, distancia / 2.0)    # desacelera nos últimos 2 m
+        velocidade = C.SUB_APPROACH_SPEED * fracao
+        passo = min(distancia, velocidade * dt)
+        direcao = delta / distancia
+        sub.position[0] += direcao[0] * passo
+        sub.position[2] += direcao[2] * passo
+        sub.prop_speed = C.PROP_SPEED * fracao
 
     def _alvo_acima_do_sub(self):
         return self.sub.position + np.array([0.0, C.DISC_HEIGHT_OVER_SUB, 0.0])

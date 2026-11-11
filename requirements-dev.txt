@@ -1,0 +1,6 @@
+# Dependência SOMENTE para regenerar as texturas procedurais (não é necessária para executar).
+# O código em execução carrega os PNGs já gerados; PIL/Pillow só é importado por tools/generate_textures.py.
+# Instalada e validada neste ambiente (venv local, 2026-11): rode
+#   python tools/generate_textures.py --check
+# para regenerar em pasta temporária e validar, ou --force para reescrever assets/textures/.
+Pillow==13.0.0
