@@ -213,3 +213,15 @@
 - **Arquivos revisados:** `src/config.py` (perfil `minima`, `KEYMAP`, `CONTROLS`, mensagem de erro do `--quality`), `main.py` (bloco de teclas via `KEYMAP`, `_trocar_perfil_qualidade` substituído por `_selecionar_perfil_manual`, legendas F3→F2), `src/ui/hud.py` (toast, `forcar_refresh`, linha auto/manual), `src/controls/camera_rig.py`, `README.md` (tabela de controles, seções HUD/desempenho/`--quality`), `AGENTS.md` (Controls & HUD), `docs/USO_IA.md`.
 - **Verificação:** `tests.test_abducao` e `tests.test_camera` passam; `compileall` limpo; arranque real do app (Mesa Iris Xe, GL 4.6 Compatibility, janela 960×540) sem erros. Smoke test do HUD fora do jogo validou: toast aparece/some em ~1,5 s e zera no resize; linha `Qualidade: … (manual|auto)`; `forcar_refresh` reconstrói a textura antes dos 0,5 s (1 rebuild com ele ligado, 0 sem); painel de controles em 640×360/960×540/1280×720 sem overflow de texto. Switch de perfil em execução com teclado físico não foi testado nesta sessão (validação por inspeção + smoke).
 - **Limitações:** o depth map antigo não é liberado do GL no switch de resolução (não há `glDelete*` no projeto; mesmo trade-off do código anterior); grade da água/tesselação/anel/detalhes só mudam no arranque; em `minima` a escada do adaptativo é só escala de render; com HUD oculto (F1) o toast também fica oculto.
+
+## Integrantes no README e no painel Sobre (2026-11-10)
+- **Ferramenta/modelo:** opencode — inkling-2-small-free.
+- **Feito:** preenchidos os nomes dos integrantes no `README.md` (Lucas Evaristo Almeida de Paula — Submarino Estilizado; Gabriel Medeiros de Souza Costa — Disco Voador; temas atribuídos pela ordem do parêntese já existente) e em `STUDENT_NAMES` (`src/config.py`), que alimenta a linha "Créditos:" do painel Sobre do HUD. Seções "Contribuições individuais" (README) mantidas em branco por não haver partilha informada.
+- **Arquivos revisados:** `README.md`, `src/config.py`, `docs/USO_IA.md`.
+- **Verificação:** `venv/bin/python -m tests.test_abducao` passou; texto dos créditos confere com o painel Sobre (uma linha "Créditos: nome1 · nome2").
+
+## Ajuste dos integrantes no README (2026-11-10)
+- **Ferramenta/modelo:** opencode — inkling-2-small-free.
+- **Feito:** removidos os temas dos nomes (seção renomeada para "Integrantes"; a linha solta com os temas e os sufixos `(tema: …)` saíram); removida a seção "Contribuições individuais" (não haverá divisão documentada); `STUDENT_NAMES` do painel Sobre reduzido aos dois nomes.
+- **Arquivos revisados:** `README.md`, `src/config.py`, `docs/USO_IA.md`.
+- **Verificação:** `venv/bin/python -m tests.test_abducao` passou; painel Sobre exibe "Créditos: Lucas Evaristo Almeida de Paula · Gabriel Medeiros de Souza Costa".

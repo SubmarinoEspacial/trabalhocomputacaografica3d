@@ -282,8 +282,8 @@ CONTROLS = [
 ]
 
 STUDENT_NAMES = [
-    "Integrante 1: ___ (tema: ___)",
-    "Integrante 2: ___ (tema: ___)",
+    "Lucas Evaristo Almeida de Paula",
+    "Gabriel Medeiros de Souza Costa",
 ]
 
 ABOUT_TITLE = "Abdução no Mar: Submarino x Disco Voador (Computação Gráfica, UNIPAC 2026/02)"

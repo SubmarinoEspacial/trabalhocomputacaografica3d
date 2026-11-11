@@ -1,9 +1,8 @@
 # Trabalho Prático de Computação Gráfica (UNIPAC, 2026/02)
 
-## Integrantes e temas
-- Integrante 1: ___ (tema: ___)
-- Integrante 2: ___ (tema: ___)
-(Submarino Estilizado e Disco Voador)
+## Integrantes
+- Lucas Evaristo Almeida de Paula
+- Gabriel Medeiros de Souza Costa
 
 ## Descrição da cena e da interação
 Mar aberto noturno com lua, estrelas, neblina no horizonte, ondas procedurais,
@@ -154,10 +153,6 @@ malha é recriada.
 | Espuma de contato e esteira | `src/environment/foam.py`, `shaders/foam.vert`, `shaders/foam.frag` |
 | Pós-processamento | `src/environment/postprocess.py`, `shaders/postprocess.vert`, `shaders/postprocess.frag` |
 | Shader / uniforms | `shaders/*.vert`, `shaders/*.frag` |
-
-## Contribuições individuais
-- ___:
-- ___:
 
 ## Fontes consultadas
 - STEMKOSKI, Lee; PASCALE, Michael. Developing graphics frameworks with Python and OpenGL. CRC Press, 2022.
