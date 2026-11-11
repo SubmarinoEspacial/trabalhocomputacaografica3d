@@ -4,7 +4,7 @@
 - Lucas Evaristo Almeida de Paula
 - Gabriel Medeiros de Souza Costa
 
-Temas escolhidos pela dupla (sorteio dispensado pelo professor): Submarino Estilizado e Disco Voador
+Temas escolhidos pela dupla: Submarino Estilizado e Disco Voador
 
 ## Contribuições individuais
 - Integrante 1: Lucas Evaristo Almeida de Paula (partes do código, modelos, shaders) — ___
