@@ -142,7 +142,7 @@ class Aplicacao(Base):
             flush=True,
         )
         self._proximo_gc = time.perf_counter() + C.GC_INTERVAL
-        self._atualizar_titulo(False)
+        # O título da janela é definido uma única vez em Base.__init__ (set_caption).
         # Congela o que já existe e desliga o GC automático no laço; a coleta
         # manual de _coletar_lixo evita acúmulo de ciclos sem pausas por frame.
         gc.collect()
@@ -287,7 +287,6 @@ class Aplicacao(Base):
         self.hud.mostrar_mensagem(f"Qualidade: {rotulo}")
         self._hud_refresh_pendente = True
         self._zerar_perfil()
-        pygame.display.set_caption(f"Validacao OpenGL | Perfil {C.QUALITY} | F2 tempos")
         print(
             f"Qualidade: {rotulo} (manual) | adaptativo desligado (G religa)",
             flush=True,
@@ -355,13 +354,6 @@ class Aplicacao(Base):
                 pilha.extend((filho, visivel) for filho in no.children)
         return total_meshes, meshes_sombra, vertices_agua, indices_agua
 
-    def _atualizar_titulo(self, ativa):
-        """Restaura ou aplica o sufixo de FPS no título da janela."""
-        titulo = "Validacao OpenGL"
-        if ativa:
-            titulo += " | F2"
-        pygame.display.set_caption(titulo)
-
     def _zerar_perfil(self):
         """Recomeça a média para a próxima leitura de F2."""
         self._frames_perfil = 0
@@ -407,7 +399,6 @@ class Aplicacao(Base):
             f"GL={self._gl_renderer} | janela={self.largura}x{self.altura}"
         )
         print(texto, flush=True)
-        pygame.display.set_caption(f"Validacao OpenGL | {texto}")
         self._zerar_perfil()
 
     def _diagnostico_hud(self):
@@ -523,7 +514,6 @@ class Aplicacao(Base):
             self.perfil_ativo = not self.perfil_ativo
             self._zerar_perfil()
             self._hud_refresh_pendente = True
-            self._atualizar_titulo(self.perfil_ativo)
         self._tempos_anterior = tempos_pressionado
 
         hud_pressionado = bool(teclas[C.KEYMAP["hud"]])
@@ -691,6 +681,6 @@ if __name__ == "__main__":
     Aplicacao(
         largura=C.WINDOW_SIZE[0],
         altura=C.WINDOW_SIZE[1],
-        titulo="Validacao OpenGL",
+        titulo="Cena Submarino Espacial",
         tamanho_minimo=C.MIN_WINDOW_SIZE,
     )

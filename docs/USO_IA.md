@@ -355,6 +355,15 @@ Formato comum das entradas: **Data**, **Ferramenta/modelo**, **Feito** (finalida
 - **Verificação:** `--check` OK; contact sheets conferidos (pintura em tons escuros frios com rebites; painéis 4×4 com bevel e parafusos; espuma em faixas de crista com pontos; feixe em filamentos; céu com faixa e estrelas); amostragem de pixels confirma predominância de tons frios (quentes ~700 px = ferrugem intencional); smoke OpenGL real com `--quality alta` (`venv/bin/python main.py --quality alta`, ~6 s, encerrado por `timeout`) sem erros; `venv/bin/python -m tests.test_abducao` e `venv/bin/python -m tests.test_camera` passam; `compileall` limpo.
 - **Trechos:** `tools/generate_textures.py → ruido (31), gerar_ceu_estrelado (50), gerar_espuma (118), gerar_pintura_submarino (137), gerar_paineis_disco (189), gerar_feixe_ruido (240)`; `src/config.py → _PERFIS_QUALIDADE["alta"] (73)`.
 
+## Título da janela estático e remoção de redundância (2026-11-16)
+- **Data:** 2026-11-16.
+- **Ferramenta/modelo:** opencode — `inkling-2-small-free`.
+- **Feito:** o título da janela passou a ser fixo em **"Cena Submarino Espacial"** (sugestão da dupla, definida em `Aplicacao.__init__`). Removidos os sufixos que mudavam o título em runtime: a linha de diagnóstico do F2 (`_registrar_frame` chamava `set_caption` com toda a string de medições a cada 1 s) e o sufixo de perfil na troca manual (F3/F4/F5/X). Removida a `_atualizar_titulo()`, que era redundante (só era chamada no boot com `False`; o parâmetro `ativa` e o sufixo `| F2` eram inalcançáveis); o título passa a ser definido em um único ponto: `Base.__init__` (comentário em `main.py` registra isso).
+- **Ambiente:** `venv/` foi removido da cópia local; execuções passam a usar `.venv/bin/python` (mesmas versões fixadas). As referências a `venv/bin/python` no AGENTS.md estão desatualizadas e ficam para revisão da dupla.
+- **Arquivos revisados:** `main.py`, `framework/core/base.py` e este registro.
+- **Verificação:** `compileall` limpo; `tests.test_abducao` e `tests.test_camera` passam; smoke OpenGL real (Iris Xe, ~6 s, encerrado por `timeout`) sem erros; nenhuma referência a `_atualizar_titulo` nem a `Validacao OpenGL` restante.
+- **Trechos:** `framework/core/base.py → Base.__init__ (set_caption (33))`; `main.py → comentário em initialize (~145) e ausência de outros set_caption`.
+
 ## Uso de IA no planejamento e documentação (fora da IDE)
 - **Data(s):** ___
 - **Finalidade:** assistente Claude (Anthropic), em conversas externas (fora da IDE), usado para planejar etapas, redigir prompts, preparar o roteiro/slides e auditar requisitos (inclusive a auditoria do repositório contra o enunciado que motivou a entrada anterior).

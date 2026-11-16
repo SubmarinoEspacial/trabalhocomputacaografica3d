@@ -14,7 +14,7 @@ class Base:
         self,
         largura=960,
         altura=640,
-        titulo="Validacao OpenGL",
+        titulo="Cena Submarino Espacial",
         tamanho_minimo=(640, 360),
     ):
         self.largura = largura
